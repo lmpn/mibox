@@ -1,0 +1,19 @@
+application:
+  app_name: "zero2prod"
+  host: "127.0.0.1"
+  port: 8000
+  log_level: "error"
+  drive: "/Users/luisneto/Documents/dev/nmibox/tmp"
+database:
+  require_ssl: true 
+  host: "127.0.0.1"
+  port: 5432
+  username: "postgres"
+  password: "password"
+  database_name: "newsletter"
+  hmac_secret: "very-long-hmac-secret-for-robustness"
+email_client:
+  timeout: 10000
+  base_url: "http://127.0.0.1"
+  sender_email: "test@gmail.com"
+  token: "my-secret-token"

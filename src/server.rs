@@ -1,14 +1,22 @@
-use std::time::Duration;
+use std::{time::Duration};
 
+use anyhow::anyhow;
 use axum::{
+    body::Body,
+    extract::Query,
+    response::IntoResponse,
     routing::{get, post},
     Router,
 };
+use hyper::{header, StatusCode};
+use tokio::net::TcpListener;
 use tokio::signal;
-use tokio::{net::TcpListener};
+use tokio_util::io::ReaderStream;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
+use crate::error::MiboxError;
 
 pub struct Server {}
 
@@ -27,7 +35,7 @@ impl Server {
             .with(tracing_subscriber::fmt::layer().without_time())
             .init();
         let router = Router::new()
-            .route("/:file_name", get(get_handler))
+            .route("/", get(get_handler))
             .route("/:file_name", post(post_handler))
             .layer((
                 TraceLayer::new_for_http(),
@@ -71,8 +79,41 @@ impl Default for Server {
     }
 }
 
-pub async fn get_handler() -> &'static str {
-    "Get"
+#[derive(serde::Deserialize)]
+pub struct QueryParams {
+    path: String,
+}
+
+pub async fn get_handler(
+    Query(QueryParams { path }): Query<QueryParams>,
+) -> Result<impl IntoResponse, MiboxError> {
+    let file = match tokio::fs::File::open(&path).await {
+        Ok(file) => file,
+        Err(err) => {
+            return Err(MiboxError(
+                StatusCode::NOT_FOUND,
+                anyhow!("File not found: {}", err),
+            ))
+        }
+    };
+    let content_type = match mime_guess::from_path(&path).first_raw() {
+        Some(mime) => mime,
+        None => {
+            return Err(MiboxError(
+                StatusCode::BAD_REQUEST,
+                anyhow!("MIME Type couldn't be determined"),
+            ))
+        }
+    };
+
+    let stream = ReaderStream::new(file);
+    let body = Body::from_stream(stream);
+
+    let headers = [
+        (header::CONTENT_TYPE, content_type),
+    ];
+
+    Ok((headers, body))
 }
 pub async fn post_handler() -> &'static str {
     "Post"

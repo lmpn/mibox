@@ -1,4 +1,4 @@
-use std::{time::Duration};
+use std::time::Duration;
 
 use anyhow::anyhow;
 use axum::{
@@ -37,6 +37,7 @@ impl Server {
         let router = Router::new()
             .route("/", get(get_handler))
             .route("/:file_name", post(post_handler))
+            .fallback(Server::fallback)
             .layer((
                 TraceLayer::new_for_http(),
                 // Graceful shutdown will wait for outstanding requests to complete. Add a timeout so
@@ -70,6 +71,10 @@ impl Server {
            _ = ctrl_c => {},
            _ = terminate => {},
         }
+    }
+
+    async fn fallback() -> impl IntoResponse {
+        (StatusCode::NOT_FOUND, "nothing to see here")
     }
 }
 
@@ -109,9 +114,7 @@ pub async fn get_handler(
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
 
-    let headers = [
-        (header::CONTENT_TYPE, content_type),
-    ];
+    let headers = [(header::CONTENT_TYPE, content_type)];
 
     Ok((headers, body))
 }

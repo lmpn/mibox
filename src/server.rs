@@ -1,22 +1,25 @@
-use std::time::Duration;
+use std::{io, time::Duration};
 
 use anyhow::anyhow;
 use axum::{
     body::Body,
-    extract::Query,
+    extract::{Query, Request},
     response::IntoResponse,
     routing::{get, post},
     Router,
 };
+use futures::TryStreamExt;
 use hyper::{header, StatusCode};
-use tokio::net::TcpListener;
 use tokio::signal;
-use tokio_util::io::ReaderStream;
+use tokio::{io::BufWriter, net::TcpListener};
+use tokio_util::io::{ReaderStream, StreamReader};
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::error::MiboxError;
+
+const DRIVE_DIRECTORY : &str = "/Users/luisneto/Documents/dev/mibox/tmp";
 
 pub struct Server {}
 
@@ -28,15 +31,14 @@ impl Server {
     pub async fn serve(&self) -> anyhow::Result<()> {
         tracing_subscriber::registry()
             .with(
-                tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-                    "example_graceful_shutdown=debug,tower_http=debug,axum=trace".into()
-                }),
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "mibox=info,tower_http=debug,axum=trace".into()),
             )
             .with(tracing_subscriber::fmt::layer().without_time())
             .init();
         let router = Router::new()
             .route("/", get(get_handler))
-            .route("/:file_name", post(post_handler))
+            .route("/", post(post_handler))
             .fallback(Server::fallback)
             .layer((
                 TraceLayer::new_for_http(),
@@ -118,6 +120,32 @@ pub async fn get_handler(
 
     Ok((headers, body))
 }
-pub async fn post_handler() -> &'static str {
-    "Post"
+pub async fn post_handler(
+    Query(QueryParams { path }): Query<QueryParams>,
+    request: Request,
+) -> Result<impl IntoResponse, MiboxError> {
+    let body = request
+        .into_body()
+        .into_data_stream()
+        .into_stream()
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
+    let mut stream_reader = StreamReader::new(body);
+
+    let path = std::path::Path::new("").join(path);
+    if path.is_file() {
+        return Err(MiboxError(StatusCode::BAD_REQUEST, anyhow!("File exists")));
+    }
+    let file = tokio::fs::File::create(path).await.map_err(|err| {
+        tracing::error!("{}", err);
+        MiboxError(StatusCode::INTERNAL_SERVER_ERROR, anyhow!("{}", err))
+    });
+    let mut buffer = BufWriter::new(file?);
+
+    tokio::io::copy(&mut stream_reader, &mut buffer)
+        .await
+        .map(|_| ())
+        .map_err(|err| {
+            tracing::error!("{}", err);
+            MiboxError(StatusCode::INTERNAL_SERVER_ERROR, anyhow!("{}", err))
+        })
 }

@@ -6,4 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-quinn = "0.10.2"
+anyhow = "1.0.77"
+axum = "0.7.2"
+tokio = { version = "1.35.1", features = ["full"] }
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
+
+[[bin]]
+name = "mibox"
+path = "bin/main.rs"

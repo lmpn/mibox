@@ -47,7 +47,6 @@ pub async fn download_service_handler(
         }
     };
     let content_type = mime_guess::from_path(&path)
-        .count()
         .first_raw()
         .unwrap_or_else(|| TEXT_PLAIN_UTF_8.as_ref());
 

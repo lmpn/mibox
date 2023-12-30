@@ -11,26 +11,36 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::services::{
-    download::download_service_handler, fallback::fallback_service_handler, upload::upload_service_handler,
+    download::download_service_handler, fallback::fallback_service_handler,
+    upload::upload_service_handler,
 };
 
-const DRIVE_DIRECTORY: &str = "/Users/luisneto/Documents/dev/mibox/tmp";
+pub const DRIVE_DIRECTORY: &str = "/Users/luisneto/Documents/dev/mibox/tmp";
 
 pub struct Server {
     address: String,
     timeout: Duration,
-    directory : String,
+    directory: String,
 }
 
 impl Default for Server {
     fn default() -> Self {
-        Self::new("127.0.0.1:3000".to_string(), Duration::from_secs(10), DRIVE_DIRECTORY.to_string())
+        Self::new(
+            "127.0.0.1:3000".to_string(),
+            Duration::from_secs(10),
+            DRIVE_DIRECTORY.to_string(),
+        )
     }
 }
 
 impl Server {
-    pub fn new(address: String, timeout: Duration, directory: String) -> Self { Self { address, timeout, directory } }
-
+    pub fn new(address: String, timeout: Duration, directory: String) -> Self {
+        Self {
+            address,
+            timeout,
+            directory,
+        }
+    }
 
     pub async fn serve(&self) -> anyhow::Result<()> {
         tracing_subscriber::registry()

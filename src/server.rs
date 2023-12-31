@@ -12,7 +12,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::services::{
     download::download_service_handler, fallback::fallback_service_handler,
-    upload::upload_service_handler, listing::listing_service_handler,
+    upload::upload_service_handler, listing::listing_service_handler, search::search_service_handler,
 };
 
 pub const DRIVE_DIRECTORY: &str = "/Users/luisneto/Documents/dev/mibox/tmp";
@@ -53,6 +53,7 @@ impl Server {
         let router = Router::new()
             .route("/", get(download_service_handler))
             .route("/listing", get(listing_service_handler))
+            .route("/search", get(search_service_handler))
             .route("/", post(upload_service_handler))
             .fallback(fallback_service_handler)
             .layer((

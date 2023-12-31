@@ -12,7 +12,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::services::{
     download::download_service_handler, fallback::fallback_service_handler,
-    upload::upload_service_handler, listing::listing_service_handler, search::search_service_handler,
+    listing::listing_service_handler, search::search_service_handler,
+    upload::upload_service_handler,
 };
 
 pub const DRIVE_DIRECTORY: &str = "/Users/luisneto/Documents/dev/mibox/tmp";
@@ -50,11 +51,16 @@ impl Server {
             )
             .with(tracing_subscriber::fmt::layer().without_time())
             .init();
-        let router = Router::new()
-            .route("/", get(download_service_handler))
+        let file_routes = Router::new()
+            .route("/download", get(download_service_handler))
             .route("/listing", get(listing_service_handler))
             .route("/search", get(search_service_handler))
-            .route("/", post(upload_service_handler))
+            .route("/upload", post(upload_service_handler));
+        let file_router = Router::new().nest("/files", file_routes);
+        let versioned_file_router = Router::new()
+            .nest("/v1", file_router);
+        let router = Router::new()
+            .nest("/api", versioned_file_router)
             .fallback(fallback_service_handler)
             .layer((
                 TraceLayer::new_for_http(),

@@ -32,12 +32,20 @@ pub async fn search_service_handler(
             )
         })?
         .filter_map(Result::ok)
+        .filter(|entry| {
+            entry
+                .path()
+                .file_name()
+                .unwrap_or_default()
+                .to_str()
+                .unwrap_or_default()
+                .starts_with(&query)
+        })
         .sorted_by(|a, b| Ord::cmp(&a.path(), &b.path()))
-        .filter_map(|entry| entry.path().file_name().map(OsStr::to_os_string))
-        .filter_map(|entry| entry.to_str().map(str::to_string))
-        .filter(|entry| entry.starts_with(&query))
         .skip(page * count)
-        .take(count);
+        .take(count)
+        .filter_map(|entry| entry.path().file_name().map(OsStr::to_os_string))
+        .filter_map(|entry| entry.to_str().map(str::to_string));
     let files: String = itertools::Itertools::intersperse(files, ",".to_string()).collect();
     Ok((StatusCode::OK, files))
 }
@@ -143,7 +151,8 @@ mod tests {
 
         // `Router` implements `tower::Service<Request<Body>>` so we can
         // call it like any tower service, no need to run an HTTP server.
-        let zero_response = app.clone()
+        let zero_response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/?query=f&page=0&count=0")
@@ -155,7 +164,12 @@ mod tests {
 
         assert_eq!(zero_response.status(), StatusCode::BAD_REQUEST);
 
-        let body = zero_response.into_body().collect().await.unwrap().to_bytes();
+        let body = zero_response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes();
         assert_eq!(b"Error: count must be between 0 and 50", &body[..]);
 
         let fifty_response = app
@@ -170,7 +184,12 @@ mod tests {
 
         assert_eq!(fifty_response.status(), StatusCode::BAD_REQUEST);
 
-        let body = fifty_response.into_body().collect().await.unwrap().to_bytes();
+        let body = fifty_response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes();
         assert_eq!(b"Error: count must be between 0 and 50", &body[..]);
     }
 
@@ -180,10 +199,11 @@ mod tests {
 
         // `Router` implements `tower::Service<Request<Body>>` so we can
         // call it like any tower service, no need to run an HTTP server.
-        let zero_response = app.clone()
+        let zero_response = app
+            .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/?query=f&page=0&count=10")
+                    .uri("/?query=fd&page=0&count=10")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -192,7 +212,13 @@ mod tests {
 
         assert_eq!(zero_response.status(), StatusCode::OK);
 
-        let body = zero_response.into_body().collect().await.unwrap().to_bytes();
-        assert_eq!(b"f1,f10,f11,f12,f13,f14,f15,f2,f3,f4", &body[..]);
+        let body = zero_response
+            .into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes();
+        println!("{:?}", body);
+        assert_eq!(b"fd1,fd10,fd11,fd12,fd14,fd15,fd2,fd3,fd4,fd5", &body[..]);
     }
 }

@@ -1,8 +1,8 @@
 use anyhow::anyhow;
 use axum::{extract::Query, response::IntoResponse};
 use hyper::StatusCode;
-use tracing::error;
 use std::ffi::OsStr;
+use tracing::error;
 
 use crate::error::MiboxError;
 
@@ -15,12 +15,15 @@ pub struct QueryParams {
 pub async fn listing_service_handler(
     Query(QueryParams { page, count }): Query<QueryParams>,
 ) -> Result<impl IntoResponse, MiboxError> {
-    let path = std::path::Path::new(crate::server::DRIVE_DIRECTORY).join("");
+    let path = std::path::Path::new(crate::server::DRIVE_DIRECTORY);
     let files: String = itertools::Itertools::intersperse(
         path.read_dir()
-            .map_err(|err|{
+            .map_err(|err| {
                 error!("{}", err);
-                MiboxError(StatusCode::INTERNAL_SERVER_ERROR, anyhow!("error loading files"))
+                MiboxError(
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    anyhow!("error loading files"),
+                )
             })?
             .skip(page * count)
             .take(count)

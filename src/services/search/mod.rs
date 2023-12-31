@@ -15,7 +15,7 @@ pub struct QueryParams {
 pub async fn search_service_handler(
     Query(QueryParams { query, page, count }): Query<QueryParams>,
 ) -> Result<impl IntoResponse, MiboxError> {
-    let path = std::path::Path::new(crate::server::DRIVE_DIRECTORY).join("");
+    let path = std::path::Path::new(crate::server::DRIVE_DIRECTORY);
     let files = path
         .read_dir()
         .map_err(|err| {

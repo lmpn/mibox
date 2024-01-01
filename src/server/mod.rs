@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::{
-    routing::{get, post},
+    routing::{get, post, delete},
     Router,
 };
 use tokio::net::TcpListener;
@@ -13,9 +13,9 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use crate::services::{
     download::download_service_handler, fallback::fallback_service_handler,
     listing::listing_service_handler, search::search_service_handler,
-    upload::upload_service_handler,
+    upload::upload_service_handler, removal::removal_service_handler,
 };
-
+pub mod error;
 pub const DRIVE_DIRECTORY: &str = "/Users/luisneto/Documents/dev/mibox/tmp";
 
 pub struct Server {
@@ -55,7 +55,8 @@ impl Server {
             .route("/download", get(download_service_handler))
             .route("/listing", get(listing_service_handler))
             .route("/search", get(search_service_handler))
-            .route("/upload", post(upload_service_handler));
+            .route("/upload", post(upload_service_handler))
+            .route("/remove", delete(removal_service_handler));
         let file_router = Router::new().nest("/files", file_routes);
         let versioned_file_router = Router::new()
             .nest("/v1", file_router);

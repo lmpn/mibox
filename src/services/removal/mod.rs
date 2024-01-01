@@ -1,31 +1,18 @@
-use crate::{server::error::MiboxError};
+use std::path::Component;
+
+use crate::server::error::MiboxError;
 use anyhow::anyhow;
-use axum::{
-    extract::{Query, Request},
-    response::IntoResponse,
-};
-use futures::TryStreamExt;
+use axum::{extract::Query, response::IntoResponse};
 use hyper::StatusCode;
-use std::{io, path::Component};
-use tokio::io::BufWriter;
-use tokio_util::io::StreamReader;
 
 #[derive(serde::Deserialize)]
 pub struct QueryParams {
     path: String,
 }
 
-pub async fn upload_service_handler(
+pub async fn removal_service_handler(
     Query(QueryParams { path }): Query<QueryParams>,
-    request: Request,
 ) -> Result<impl IntoResponse, MiboxError> {
-    let body = request
-        .into_body()
-        .into_data_stream()
-        .into_stream()
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, e));
-    let mut stream_reader = StreamReader::new(body);
-
     let path = std::path::Path::new(&path);
     let is_valid = path
         .components()
@@ -50,17 +37,14 @@ pub async fn upload_service_handler(
             MiboxError(StatusCode::BAD_REQUEST, anyhow!("File not found"))
         })?;
 
-    let file = tokio::fs::File::create(path).await.map_err(|err| {
-        tracing::error!("{}", err);
-        MiboxError(StatusCode::INTERNAL_SERVER_ERROR, anyhow!("{}", err))
-    });
-    let mut buffer = BufWriter::new(file?);
-
-    tokio::io::copy(&mut stream_reader, &mut buffer)
+    tokio::fs::remove_file(&path)
         .await
-        .map(|_| (StatusCode::CREATED))
+        .map(|_| StatusCode::OK)
         .map_err(|err| {
-            tracing::error!("{}", err);
-            MiboxError(StatusCode::INTERNAL_SERVER_ERROR, anyhow!("{}", err))
+            tracing::error!("Non-canonical path {:?} : {}", path, err);
+            MiboxError(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                anyhow!("File could not be deleted"),
+            )
         })
 }

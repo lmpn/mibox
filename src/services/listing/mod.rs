@@ -4,8 +4,7 @@ use hyper::StatusCode;
 use itertools::Itertools;
 use std::ffi::OsStr;
 use tracing::error;
-
-use crate::error::MiboxError;
+use crate::server::error::MiboxError;
 
 #[derive(serde::Deserialize)]
 pub struct QueryParams {

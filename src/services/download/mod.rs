@@ -1,11 +1,10 @@
 use std::path::Component;
-
-use crate::error::MiboxError;
 use anyhow::anyhow;
 use axum::{body::Body, extract::Query, response::IntoResponse};
 use hyper::{header, StatusCode};
 use mime_guess::mime::TEXT_PLAIN_UTF_8;
 use tokio_util::io::ReaderStream;
+use crate::server::error::MiboxError;
 
 #[derive(serde::Deserialize)]
 pub struct QueryParams {

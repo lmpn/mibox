@@ -3,3 +3,4 @@ pub mod upload;
 pub mod fallback;
 pub mod listing;
 pub mod search;
+pub mod removal;

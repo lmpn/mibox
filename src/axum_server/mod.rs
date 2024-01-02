@@ -1,30 +1,30 @@
-use std::time::Duration;
-
 use axum::{
-    routing::{get, post, delete},
+    routing::{delete, get, post},
     Router,
 };
+use handlers::{
+    download::download_service_handler, fallback::fallback_service_handler,
+    listing::listing_service_handler, removal::removal_service_handler,
+    search::search_service_handler, upload::upload_service_handler,
+};
+use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::signal;
 use tower_http::timeout::TimeoutLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+mod error;
+mod handlers;
 
-use crate::services::{
-    download::download_service_handler, fallback::fallback_service_handler,
-    listing::listing_service_handler, search::search_service_handler,
-    upload::upload_service_handler, removal::removal_service_handler,
-};
-pub mod error;
 pub const DRIVE_DIRECTORY: &str = "/Users/luisneto/Documents/dev/mibox/tmp";
 
-pub struct Server {
+pub struct AxumServer {
     address: String,
     timeout: Duration,
     directory: String,
 }
 
-impl Default for Server {
+impl Default for AxumServer {
     fn default() -> Self {
         Self::new(
             "127.0.0.1:3000".to_string(),
@@ -34,7 +34,7 @@ impl Default for Server {
     }
 }
 
-impl Server {
+impl AxumServer {
     pub fn new(address: String, timeout: Duration, directory: String) -> Self {
         Self {
             address,
@@ -58,8 +58,7 @@ impl Server {
             .route("/upload", post(upload_service_handler))
             .route("/remove", delete(removal_service_handler));
         let file_router = Router::new().nest("/files", file_routes);
-        let versioned_file_router = Router::new()
-            .nest("/v1", file_router);
+        let versioned_file_router = Router::new().nest("/v1", file_router);
         let router = Router::new()
             .nest("/api", versioned_file_router)
             .fallback(fallback_service_handler)
@@ -71,7 +70,7 @@ impl Server {
             ));
         let listener = TcpListener::bind(&self.address).await?;
         axum::serve(listener, router)
-            .with_graceful_shutdown(Server::shutdown())
+            .with_graceful_shutdown(AxumServer::shutdown())
             .await
             .map_err(Into::into)
     }

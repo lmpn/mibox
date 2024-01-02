@@ -1,7 +1,7 @@
-use mibox::server::Server;
+use mibox::axum_server::AxumServer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()>{
-    let server = Server::default();
+    let server = AxumServer::default();
     server.serve().await
 }

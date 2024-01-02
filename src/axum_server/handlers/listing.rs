@@ -1,19 +1,18 @@
+use crate::core::drive::Drive;
+use crate::axum_server::error::MiboxError;
+use anyhow::anyhow;
 use axum::{extract::Query, response::IntoResponse};
 use hyper::StatusCode;
-use itertools::Itertools;
-use std::ffi::OsStr;
-
-use crate::server::error::MiboxError;
+use tracing::error;
 
 #[derive(serde::Deserialize)]
 pub struct QueryParams {
-    query: String,
     page: usize,
     count: usize,
 }
 
-pub async fn search_service_handler(
-    Query(QueryParams { query, page, count }): Query<QueryParams>,
+pub async fn listing_service_handler(
+    Query(QueryParams { page, count }): Query<QueryParams>,
 ) -> Result<impl IntoResponse, MiboxError> {
     if count > 50 || count == 0 {
         return Err(MiboxError(
@@ -21,32 +20,13 @@ pub async fn search_service_handler(
             anyhow::anyhow!("count must be between 0 and 50"),
         ));
     }
-    let path = std::path::Path::new(crate::server::DRIVE_DIRECTORY);
-    let files = path
-        .read_dir()
-        .map_err(|err| {
-            tracing::error!("{}", err);
-            MiboxError(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                anyhow::anyhow!("error loading files"),
-            )
-        })?
-        .filter_map(Result::ok)
-        .filter(|entry| {
-            entry
-                .path()
-                .file_name()
-                .unwrap_or_default()
-                .to_str()
-                .unwrap_or_default()
-                .starts_with(&query)
-        })
-        .sorted_by(|a, b| Ord::cmp(&a.path(), &b.path()))
-        .skip(page * count)
-        .take(count)
-        .filter_map(|entry| entry.path().file_name().map(OsStr::to_os_string))
-        .filter_map(|entry| entry.to_str().map(str::to_string));
-    let files: String = itertools::Itertools::intersperse(files, ",".to_string()).collect();
+    let files = Drive::default().list(page, count).await.map_err(|err| {
+        error!("{}", err);
+        MiboxError(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            anyhow!("error loading files"),
+        )
+    })?;
     Ok((StatusCode::OK, files))
 }
 
@@ -65,34 +45,9 @@ mod tests {
 
     fn app() -> Router {
         Router::new()
-            .route("/", get(search_service_handler))
+            .route("/", get(listing_service_handler))
             // We can still add middleware
             .layer(TraceLayer::new_for_http())
-    }
-
-    #[tokio::test]
-    async fn when_query_parameter_is_missing_return_bad_request() {
-        let app = app();
-
-        // `Router` implements `tower::Service<Request<Body>>` so we can
-        // call it like any tower service, no need to run an HTTP server.
-        let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/?page=0")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
-
-        let body = response.into_body().collect().await.unwrap().to_bytes();
-        assert_eq!(
-            b"Failed to deserialize query string: missing field `query`",
-            &body[..]
-        );
     }
 
     #[tokio::test]
@@ -102,12 +57,7 @@ mod tests {
         // `Router` implements `tower::Service<Request<Body>>` so we can
         // call it like any tower service, no need to run an HTTP server.
         let response = app
-            .oneshot(
-                Request::builder()
-                    .uri("/?query=f")
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            .oneshot(Request::builder().uri("/?").body(Body::empty()).unwrap())
             .await
             .unwrap();
 
@@ -129,7 +79,7 @@ mod tests {
         let response = app
             .oneshot(
                 Request::builder()
-                    .uri("/?query=f&page=0")
+                    .uri("/?&page=0")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -155,7 +105,7 @@ mod tests {
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/?query=f&page=0&count=0")
+                    .uri("/?page=0&count=0")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -175,7 +125,7 @@ mod tests {
         let fifty_response = app
             .oneshot(
                 Request::builder()
-                    .uri("/?query=f&page=0&count=0")
+                    .uri("/?page=0&count=0")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -203,7 +153,7 @@ mod tests {
             .clone()
             .oneshot(
                 Request::builder()
-                    .uri("/?query=fd&page=0&count=10")
+                    .uri("/?page=0&count=10")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -218,7 +168,6 @@ mod tests {
             .await
             .unwrap()
             .to_bytes();
-        println!("{:?}", body);
-        assert_eq!(b"fd1,fd10,fd11,fd12,fd14,fd15,fd2,fd3,fd4,fd5", &body[..]);
+        assert_eq!(b"f1,f10,f11,f12,f13,f14,f15,f2,f3,f4", &body[..]);
     }
 }

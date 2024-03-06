@@ -1,0 +1,6 @@
+application:
+  log_level: "debug"
+  base_url: "http://127.0.0.1"
+  hmac_secret: "very-long-hmac-secret-for-robustness-very-long-hmac-secret-for-robustness"
+database:
+  require_ssl: false

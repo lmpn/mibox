@@ -1,0 +1,13 @@
+application:
+  app_name: "mibox"
+  host: "127.0.0.1"
+  port: 8000
+  log_level: "error"
+database:
+  require_ssl: true 
+  host: "127.0.0.1"
+  port: 5432
+  username: "postgres"
+  password: "password"
+  database_name: "mibox"
+  hmac_secret: "very-long-hmac-secret-for-robustness"

@@ -1,4 +1,4 @@
-use rust_template_server::{configuration, startup::Server, telemetry};
+use mibox::{configuration, startup::Server, telemetry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

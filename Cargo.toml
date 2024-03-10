@@ -1,5 +1,5 @@
 [package]
-name = "rust_template_server"
+name = "mibox"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,45 +13,31 @@ path = "src/lib.rs"
 
 [[bin]]
 path = "src/main.rs"
-name = "zero2prod"
+name = "mibox"
 
 [dependencies]
 anyhow = "1.0.79"
 axum = { version = "0.7.3", features = ["form", "macros", "query"] }
-axum-extra = { version = "0.9.2", features = ["query", "cookie", "cookie-signed"] }
 base64 = "0.21.7"
 chrono = "0.4.31"
 config = "0.13.4"
-hex = "0.4.3"
-hmac = { version = "0.12", features = ["std"] }
+futures = "0.3.30"
+itertools = "0.12.1"
+mime_guess = "2.0.4"
 once_cell = "1"
-rand = { version = "0.8.5", features = ["std_rng"] }
-rand_core = "0.6.4"
-secrecy = { version = "0.8", features = ["serde"] }
 serde = { version = "1.0.195", features = ["derive"] }
 serde-aux = "3"
 serde_json = "1.0.111"
-sha2 = "0.10"
 thiserror = "1.0.56"
-tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread"] }
-tower-http = { version = "0.5.0", features = ["trace"] }
+tokio = { version = "1.35.1", features = ["macros", "rt-multi-thread", "signal", "fs"] }
+tokio-util = { version = "0.7.10", features = ["io"] }
+tower-http = { version = "0.5.0", features = ["trace", "timeout"] }
 tracing = "0.1.40"
 tracing-bunyan-formatter = "0.3.9"
 tracing-log = "0.1"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "registry"] }
 uuid = { version = "1.6.1", features = ["v4"] }
 
-[dependencies.sqlx]
-version = "0.7.3"
-default-features = false
-features = [
-    "runtime-tokio-rustls",
-    "macros",
-    "postgres",
-    "uuid",
-    "chrono",
-    "migrate"
-]
 
 [dev-dependencies]
 

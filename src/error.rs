@@ -5,7 +5,7 @@ use axum::{
 };
 
 #[derive(thiserror::Error)]
-pub enum NewsletterError {
+pub enum MiboxError {
     #[error("{0}")]
     ValidationError(String),
     #[error("Authentication error")]
@@ -16,7 +16,7 @@ pub enum NewsletterError {
     JsonRejection(#[from] JsonRejection),
 }
 
-impl std::fmt::Debug for NewsletterError {
+impl std::fmt::Debug for MiboxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         error_chain_fmt(self, f)
     }
@@ -35,24 +35,24 @@ pub fn error_chain_fmt(
     Ok(())
 }
 
-impl IntoResponse for NewsletterError {
+impl IntoResponse for MiboxError {
     fn into_response(self) -> Response {
         tracing::error!("{:?}", self);
 
         match self {
-            NewsletterError::JsonRejection(_) => {
+            MiboxError::JsonRejection(_) => {
                 (StatusCode::BAD_REQUEST, format!("{}", self)).into_response()
             }
-            NewsletterError::AuthError(_) => {
+            MiboxError::AuthError(_) => {
                 let header_value = HeaderValue::from_str(r#"Basic realm="publish""#).unwrap();
                 let mut header_map = HeaderMap::new();
                 header_map.insert(WWW_AUTHENTICATE, header_value);
                 (StatusCode::UNAUTHORIZED, header_map, format!("{}", self)).into_response()
             }
-            NewsletterError::ValidationError(_) => {
+            MiboxError::ValidationError(_) => {
                 (StatusCode::BAD_REQUEST, "Bad request".to_owned()).into_response()
             }
-            NewsletterError::UnexpectedError(_) => (
+            MiboxError::UnexpectedError(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Something went wrong".to_owned(),
             )
@@ -62,7 +62,7 @@ impl IntoResponse for NewsletterError {
 }
 
 #[derive(FromRequest)]
-#[from_request(via(axum::Json), rejection(NewsletterError))]
+#[from_request(via(axum::Json), rejection(MiboxError))]
 pub struct AppJson<T>(pub T);
 
 impl<T> IntoResponse for AppJson<T>

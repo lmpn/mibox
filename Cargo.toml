@@ -17,6 +17,7 @@ name = "mibox"
 
 [dependencies]
 anyhow = "1.0.79"
+askama = "0.12.1"
 axum = { version = "0.7.3", features = ["form", "macros", "query"] }
 base64 = "0.21.7"
 chrono = "0.4.31"

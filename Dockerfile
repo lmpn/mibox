@@ -16,13 +16,13 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 ENV SQLX_OFFLINE true
 # Build our project
-RUN cargo build --release --bin zero2prod
+RUN cargo build --release --bin mibox
 
 
 # We do not need the Rust toolchain to run the binary!
 FROM debian:bookworm-slim AS runtime
 WORKDIR /app
-COPY --from=builder /app/target/release/zero2prod /usr/local/bin
+COPY --from=builder /app/target/release/mibox /usr/local/bin
 COPY configuration configuration
 ENV APP_ENVIRONMENT production
-ENTRYPOINT ["/usr/local/bin/zero2prod"]
+ENTRYPOINT ["/usr/local/bin/mibox"]

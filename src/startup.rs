@@ -1,5 +1,6 @@
 use crate::configuration::Settings;
 use crate::routes::file::api::{download, list, remove, upload};
+use crate::routes::file::views::{files, home};
 use crate::routes::health_check::health_check;
 use axum::body::Body;
 use axum::extract::Request;
@@ -13,22 +14,28 @@ use tower_http::trace::TraceLayer;
 #[derive(Clone)]
 pub struct AppState {
     pub base_url: String,
+    pub app_name: String,
 }
 
 impl AppState {
-    pub fn new(base_url: String) -> Self {
-        Self { base_url }
+    pub fn new(base_url: String, app_name: String) -> Self {
+        Self { base_url, app_name }
     }
 }
 
 pub struct Server {
     address: SocketAddr,
     base_url: String,
+    app_name: String,
 }
 
 impl Server {
-    pub fn new(address: SocketAddr, base_url: String) -> Self {
-        Self { address, base_url }
+    pub fn new(address: SocketAddr, base_url: String, app_name: String) -> Self {
+        Self {
+            address,
+            base_url,
+            app_name,
+        }
     }
 
     pub async fn with_settings(settings: Settings) -> anyhow::Result<Self> {
@@ -41,6 +48,7 @@ impl Server {
         Ok(Self {
             address,
             base_url: settings.application.base_url,
+            app_name: settings.application.app_name,
         })
     }
 
@@ -61,10 +69,13 @@ impl Server {
     }
 
     pub async fn create_router(&self) -> anyhow::Result<Router> {
-        let state = AppState::new(self.base_url.clone());
+        let state = AppState::new(self.base_url.clone(), self.app_name.clone());
         let file_api = Router::new()
             .route("/file", get(download).delete(remove).post(upload))
             .route("/file/list", get(list));
+        let app_views = Router::new()
+            .route("/", get(home::home))
+            .route("/files", get(files::files));
         let layer_logging = TraceLayer::new_for_http().make_span_with(|request: &Request<Body>| {
             let request_id = uuid::Uuid::new_v4();
             tracing::span!(
@@ -80,6 +91,7 @@ impl Server {
         Ok(Router::new()
             .route("/health_check", get(health_check))
             .nest("/api/v1", file_api)
+            .merge(app_views)
             .with_state(state)
             .layer(layer_timeout)
             .layer(layer_logging))

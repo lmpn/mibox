@@ -1,5 +1,21 @@
-<tr>
-    <td>Agent Smith</td>
-    <td>void11@null.org</td>
-    <td>6F53GDCFA8</td>
+{% for (idx, elem) in files %}
+{% if loop.last %}
+<tr id=file-idx-{{idx}} hx-get="/files?count={{count}}&offset={{offset}}" hx-trigger="revealed" hx-swap="afterend">
+    <td>
+        {{elem}}
+    </td>
+    {% else %}
+<tr id=file-idx-{{idx}}>
+    <td>{{elem}}</td>
+    {% endif %}
+    <td>
+        <!-- {{loop.index0}} -->
+        <!-- <div> -->
+        <!--     📦 -->
+        <!-- </div> -->
+        <div hx-delete="/api/v1/file?path={{elem}}" hx-target="#file-idx-{{idx}}" hx-trigger="click" hx-swap="delete">
+            🗑️
+        </div>
+    </td>
 </tr>
+{% endfor %}

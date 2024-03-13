@@ -4,13 +4,14 @@
 <body>
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     <h2>{{ app_name }}</h2>
-    <table hx-indicator=".htmx-indicator">
+    <table>
         <thead>
             <tr>
                 <th>Name</th>
+                <th>Actions</th>
             </tr>
         </thead>
-        <tbody hx-get="/files?count=10&offset=0" hx-trigger="revealed" hx-swap="innerHTML">
+        <tbody hx-get="/files?count=10&offset=0" hx-trigger="load" hx-swap="innerHTML">
         </tbody>
     </table>
 

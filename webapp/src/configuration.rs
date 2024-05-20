@@ -48,7 +48,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let configuration_path = base_path.join("configuration");
 
     let builder = Config::builder()
-        .add_source(config::File::from(configuration_path.join("base")).required(true));
+        .add_source(config::File::from(configuration_path.join("base.yaml")).required(true));
 
     let environment: Environment = std::env::var("APP_ENVIRONMENT")
         .unwrap_or_else(|_| "local".to_string())

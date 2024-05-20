@@ -1,13 +1,21 @@
 use crate::application::Application;
 use crate::configuration::Settings;
+use crate::handlers::drive::create_dir_service_handler;
+use crate::handlers::drive::list_service_handler;
+use crate::handlers::drive::remove_dir_service_handler;
+use crate::handlers::drive::update_dir_service_handler;
 use crate::handlers::fallback_service_handler;
+use crate::handlers::file::delete_service_handler;
+use crate::handlers::file::download_service_handler;
+use crate::handlers::file::upload_service_handler;
 use crate::handlers::health_check_service_handler;
-use crate::handlers::upload_service_handler;
 use axum::body::Body;
-use axum::http::Request;
-use axum::routing::get;
+use axum::http::HeaderValue;
+use axum::middleware;
+use axum::routing::delete;
 use axum::routing::post;
-use axum::Router;
+use axum::routing::put;
+use axum::{extract::Request, middleware::Next, response::Response, routing::get, Router};
 use std::net::SocketAddr;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
@@ -62,10 +70,17 @@ impl Server {
 
     pub async fn create_router(&self) -> anyhow::Result<Router> {
         Ok(Router::new()
+            .fallback(fallback_service_handler)
             .route("/v1/file", post(upload_service_handler))
+            .route("/v1/file", get(download_service_handler))
+            .route("/v1/file", delete(delete_service_handler))
+            .route("/v1/drive", get(list_service_handler))
+            .route("/v1/drive", put(update_dir_service_handler))
+            .route("/v1/drive", post(create_dir_service_handler))
+            .route("/v1/drive", delete(remove_dir_service_handler))
             .route("/health_check", get(health_check_service_handler))
             .with_state(self.application.clone())
-            .fallback(fallback_service_handler)
+            .layer(middleware::from_fn(secure_headers))
             .layer(
                 TraceLayer::new_for_http().make_span_with(|request: &Request<Body>| {
                     let request_id = uuid::Uuid::new_v4();
@@ -106,4 +121,18 @@ impl Server {
     pub fn address(&self) -> SocketAddr {
         self.address
     }
+}
+
+async fn secure_headers(request: Request, next: Next) -> Response {
+    let mut response = next.run(request).await;
+
+    response.headers_mut().insert(
+        axum::http::header::X_FRAME_OPTIONS,
+        HeaderValue::from_static("deny"),
+    );
+    response.headers_mut().insert(
+        axum::http::header::X_XSS_PROTECTION,
+        HeaderValue::from_static("1; mode=block"),
+    );
+    response
 }

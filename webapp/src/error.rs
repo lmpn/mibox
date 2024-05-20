@@ -58,7 +58,7 @@ impl IntoResponse for MiboxError {
             }
             MiboxError::UnexpectedError(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Something went wrong".to_owned(),
+                format!("Something went wrong"),
             )
                 .into_response(),
             MiboxError::QueryRejection(rejection) => match rejection {

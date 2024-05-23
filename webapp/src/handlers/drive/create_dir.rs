@@ -13,7 +13,7 @@ pub struct CreateDirParameters {
     path: String,
 }
 
-#[tracing::instrument(name = "Remove directory delete", skip(application))]
+#[tracing::instrument(name = "Create directory", skip(application))]
 #[debug_handler]
 pub async fn create_dir_service_handler(
     State(application): State<Application>,

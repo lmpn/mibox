@@ -1,21 +1,25 @@
-use crate::application::Application;
-use crate::configuration::Settings;
-use crate::handlers::drive::create_dir_service_handler;
-use crate::handlers::drive::list_service_handler;
-use crate::handlers::drive::remove_dir_service_handler;
-use crate::handlers::drive::update_dir_service_handler;
-use crate::handlers::fallback_service_handler;
-use crate::handlers::file::delete_service_handler;
-use crate::handlers::file::download_service_handler;
-use crate::handlers::file::upload_service_handler;
-use crate::handlers::health_check_service_handler;
-use axum::body::Body;
-use axum::http::HeaderValue;
-use axum::middleware;
-use axum::routing::delete;
-use axum::routing::post;
-use axum::routing::put;
-use axum::{extract::Request, middleware::Next, response::Response, routing::get, Router};
+use crate::{
+    application::Application,
+    configuration::Settings,
+    handlers::{
+        drive::{
+            create_dir_service_handler, list_service_handler, remove_dir_service_handler,
+            update_dir_service_handler,
+        },
+        fallback_service_handler,
+        file::{delete_service_handler, download_service_handler, upload_service_handler},
+        health_check_service_handler,
+    },
+};
+use axum::{
+    body::Body,
+    extract::Request,
+    http::HeaderValue,
+    middleware::{self, Next},
+    response::Response,
+    routing::{delete, get, post, put},
+    Router,
+};
 use std::net::SocketAddr;
 use tokio::signal;
 use tower_http::trace::TraceLayer;
@@ -80,20 +84,8 @@ impl Server {
             .route("/v1/drive", delete(remove_dir_service_handler))
             .route("/health_check", get(health_check_service_handler))
             .with_state(self.application.clone())
-            .layer(middleware::from_fn(secure_headers))
-            .layer(
-                TraceLayer::new_for_http().make_span_with(|request: &Request<Body>| {
-                    let request_id = uuid::Uuid::new_v4();
-                    tracing::span!(
-                        tracing::Level::INFO,
-                        "request",
-                        method = tracing::field::display(request.method()),
-                        uri = tracing::field::display(request.uri()),
-                        version = tracing::field::debug(request.version()),
-                        request_id = tracing::field::display(request_id),
-                    )
-                }),
-            ))
+            .layer(middleware::from_fn(secure_headers_layer))
+            .layer(tracing_layer()))
     }
 
     async fn shutdown() {
@@ -123,7 +115,24 @@ impl Server {
     }
 }
 
-async fn secure_headers(request: Request, next: Next) -> Response {
+fn tracing_layer() -> TraceLayer<
+    tower_http::classify::SharedClassifier<tower_http::classify::ServerErrorsAsFailures>,
+    impl Fn(&axum::http::Request<Body>) -> tracing::Span + Clone,
+> {
+    TraceLayer::new_for_http().make_span_with(|request: &Request<Body>| {
+        let request_id = uuid::Uuid::new_v4();
+        tracing::span!(
+            tracing::Level::INFO,
+            "request",
+            method = tracing::field::display(request.method()),
+            uri = tracing::field::display(request.uri()),
+            version = tracing::field::debug(request.version()),
+            request_id = tracing::field::display(request_id),
+        )
+    })
+}
+
+async fn secure_headers_layer(request: Request, next: Next) -> Response {
     let mut response = next.run(request).await;
 
     response.headers_mut().insert(

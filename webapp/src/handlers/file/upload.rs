@@ -1,7 +1,6 @@
 use crate::{application::Application, error::MiboxError};
 use anyhow::Context;
 use axum::{
-    debug_handler,
     extract::{Multipart, Query, State},
     http::StatusCode,
 };
@@ -11,15 +10,12 @@ use serde::Deserialize;
 use std::io;
 
 #[derive(Debug, Deserialize)]
-pub struct Parameters {
+pub struct UploadParameters {
     path: String,
 }
-
-#[tracing::instrument(name = "File upload", skip(application, multipart))]
-#[debug_handler]
 pub async fn upload_service_handler(
     State(application): State<Application>,
-    WithRejection(Query(params), _): WithRejection<Query<Parameters>, MiboxError>,
+    WithRejection(Query(params), _): WithRejection<Query<UploadParameters>, MiboxError>,
     mut multipart: Multipart,
 ) -> Result<StatusCode, MiboxError> {
     while let Ok(Some(field)) = multipart.next_field().await {

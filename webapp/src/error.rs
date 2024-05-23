@@ -1,8 +1,5 @@
 use axum::{
-    extract::{
-        rejection::{JsonRejection, QueryRejection},
-        FromRequest,
-    },
+    extract::rejection::{JsonRejection, QueryRejection},
     http::{header::WWW_AUTHENTICATE, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
 };
@@ -58,7 +55,7 @@ impl IntoResponse for MiboxError {
             }
             MiboxError::UnexpectedError(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Something went wrong"),
+                "Something went wrong".to_string(),
             )
                 .into_response(),
             MiboxError::QueryRejection(rejection) => match rejection {
@@ -72,18 +69,5 @@ impl IntoResponse for MiboxError {
                     .into_response(),
             },
         }
-    }
-}
-
-#[derive(FromRequest)]
-#[from_request(via(axum::Json), rejection(MiboxError))]
-pub struct AppJson<T>(pub T);
-
-impl<T> IntoResponse for AppJson<T>
-where
-    axum::Json<T>: IntoResponse,
-{
-    fn into_response(self) -> Response {
-        axum::Json(self.0).into_response()
     }
 }

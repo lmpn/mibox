@@ -27,7 +27,7 @@ pub async fn download_service_handler(
         .await
         .context(format!("error opening file {:?}", path))?;
 
-    if file.metadata().await.unwrap().is_file() {
+    if file.metadata().await.context("no metadata")?.is_file() {
         let reader = ReaderStream::new(file);
         let body = Body::from_stream(reader);
 
@@ -37,7 +37,7 @@ pub async fn download_service_handler(
                 header::CONTENT_DISPOSITION,
                 format!(
                     "attachment; filename=\"{}\"",
-                    params.path.split("/").last().unwrap_or("")
+                    params.path.split('/').last().unwrap_or("")
                 ),
             ),
         ];

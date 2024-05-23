@@ -1,6 +1,5 @@
 use once_cell::sync::Lazy;
 use rand::Rng;
-use reqwest::Client;
 use webapp::configuration::get_configuration;
 use webapp::server::Server;
 use webapp::telemetry;
@@ -18,7 +17,7 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub struct TestApp {
     pub port: u16,
     pub address: String,
-    pub client: Client,
+    pub client: HttpClient,
 }
 
 impl TestApp {}
@@ -36,11 +35,93 @@ pub async fn spawn_app() -> TestApp {
     let server = Server::with_settings(configuration.clone())
         .await
         .expect("error configuring server");
+    let address = format!("http://localhost:{}", server.address().port());
     let app = TestApp {
         port: server.address().port(),
-        address: format!("http://localhost:{}", server.address().port()),
-        client,
+        address,
+        client: HttpClient { inner: client },
     };
     tokio::spawn(async move { server.serve().await.unwrap() });
     app
+}
+
+pub struct HttpClient {
+    inner: reqwest::Client,
+}
+
+impl HttpClient {
+    pub async fn upload_files(
+        &self,
+        address: &str,
+        files: Vec<(&str, &str)>,
+    ) -> anyhow::Result<reqwest::Response> {
+        if files.is_empty() {
+            return Ok(self.inner.post(address).send().await?);
+        }
+
+        //create the multipart form
+        let mut form = reqwest::multipart::Form::new();
+        for (file, name) in files.into_iter() {
+            let file = tokio::fs::File::open(file)
+                .await
+                .expect("error reading file");
+            // read file body stream
+            let stream =
+                tokio_util::codec::FramedRead::new(file, tokio_util::codec::BytesCodec::new());
+            let file_body = reqwest::Body::wrap_stream(stream);
+
+            //make form part of file
+            let some_file = reqwest::multipart::Part::stream(file_body)
+                .file_name(name.to_owned())
+                .mime_str("text/plain")?;
+            form = form.part("file", some_file);
+        }
+
+        //send request
+        let response = self
+            .inner
+            .post(address)
+            .multipart(form)
+            .send()
+            .await
+            .expect("error uploading files");
+
+        Ok(response)
+    }
+
+    pub async fn download_file(&self, address: &str) -> anyhow::Result<reqwest::Response> {
+        Ok(self
+            .inner
+            .get(address)
+            .send()
+            .await
+            .expect("failed to download file"))
+    }
+
+    pub async fn list(&self, address: &str) -> anyhow::Result<reqwest::Response> {
+        Ok(self
+            .inner
+            .get(address)
+            .send()
+            .await
+            .expect("failed to delete file"))
+    }
+
+    pub async fn create_dir(&self, address: &str) -> anyhow::Result<reqwest::Response> {
+        Ok(self
+            .inner
+            .post(address)
+            .send()
+            .await
+            .expect("failed to delete file"))
+    }
+
+    pub async fn delete_file(&self, address: &str) -> anyhow::Result<reqwest::Response> {
+        Ok(self
+            .inner
+            .delete(address)
+            .send()
+            .await
+            .expect("failed to delete file"))
+    }
 }

@@ -13,7 +13,7 @@ pub struct RemoveDirParameters {
     path: String,
 }
 
-#[tracing::instrument(name = "Remove directory delete", skip(application))]
+#[tracing::instrument(name = "Remove directory", skip(application))]
 #[debug_handler]
 pub async fn remove_dir_service_handler(
     State(application): State<Application>,

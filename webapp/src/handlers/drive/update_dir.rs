@@ -20,6 +20,7 @@ pub async fn update_dir_service_handler(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<UpdateDirParameters>, MiboxError>,
 ) -> Result<StatusCode, MiboxError> {
+    //TODO handle the path verification
     let from = application.drive.join(params.from.clone());
     let to = application.drive.join(params.to.clone());
     tokio::fs::rename(from.clone(), to.clone())

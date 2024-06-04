@@ -15,10 +15,10 @@ pub struct ListParameters {
     path: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
 pub struct DriveView {
-    path: String,
-    is_directory: bool,
+    pub path: String,
+    pub is_directory: bool,
 }
 
 #[tracing::instrument(name = "Drive listing", skip(application, headers))]

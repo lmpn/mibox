@@ -1,3 +1,6 @@
+use std::io::Write;
+use std::path::PathBuf;
+
 use once_cell::sync::Lazy;
 use rand::Rng;
 use webapp::configuration::get_configuration;
@@ -18,6 +21,7 @@ pub struct TestApp {
     pub port: u16,
     pub address: String,
     pub client: HttpClient,
+    pub drive_base: String,
 }
 
 impl TestApp {}
@@ -40,6 +44,7 @@ pub async fn spawn_app() -> TestApp {
         port: server.address().port(),
         address,
         client: HttpClient { inner: client },
+        drive_base: configuration.application.drive,
     };
     tokio::spawn(async move { server.serve().await.unwrap() });
     app
@@ -107,6 +112,23 @@ impl HttpClient {
             .expect("failed to delete file"))
     }
 
+    pub async fn update_dir(&self, address: &str) -> anyhow::Result<reqwest::Response> {
+        Ok(self
+            .inner
+            .put(address)
+            .send()
+            .await
+            .expect("failed to delete file"))
+    }
+
+    pub async fn delete_dir(&self, address: &str) -> anyhow::Result<reqwest::Response> {
+        Ok(self
+            .inner
+            .delete(address)
+            .send()
+            .await
+            .expect("failed to delete file"))
+    }
     pub async fn create_dir(&self, address: &str) -> anyhow::Result<reqwest::Response> {
         Ok(self
             .inner
@@ -124,4 +146,24 @@ impl HttpClient {
             .await
             .expect("failed to delete file"))
     }
+}
+
+pub fn random_name(len: usize) -> String {
+    let chars: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"; // characters to choose from
+
+    let mut rng = rand::thread_rng();
+    let alphabet_size = chars.len();
+    let get_random_char = |_| {
+        let index = rng.gen_range(0..alphabet_size);
+        chars[index] as char
+    };
+    (0..len).map(get_random_char).collect::<String>()
+}
+
+pub fn random_file(base_path: String) -> PathBuf {
+    let name = random_name(10);
+    let path = PathBuf::from(base_path).join(name);
+    let mut file = std::fs::File::create(path.clone()).unwrap();
+    file.write(b"RANDOM CONTENT").unwrap();
+    return path;
 }

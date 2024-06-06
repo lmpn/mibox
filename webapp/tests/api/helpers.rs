@@ -1,9 +1,12 @@
-use std::io::Write;
-use std::path::PathBuf;
-
+use anyhow::Context;
 use once_cell::sync::Lazy;
 use rand::Rng;
+use std::io::Write;
+use std::path::PathBuf;
+use std::time::Duration;
+use tracing::error;
 use webapp::configuration::get_configuration;
+use webapp::handlers::drive::DriveView;
 use webapp::server::Server;
 use webapp::telemetry;
 
@@ -18,10 +21,8 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 });
 
 pub struct TestApp {
-    pub port: u16,
     pub address: String,
     pub client: HttpClient,
-    pub drive_base: String,
 }
 
 impl TestApp {}
@@ -30,7 +31,8 @@ pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
     let mut configuration = get_configuration().expect("could not read configuration");
-    configuration.application.port = rand::thread_rng().gen();
+    configuration.application.port = rand::thread_rng().gen_range(1024..u16::MAX);
+    let p = rand::thread_rng().gen_range(0..500) + 100;
     let client = reqwest::Client::builder()
         .redirect(reqwest::redirect::Policy::none())
         .cookie_store(true)
@@ -41,12 +43,11 @@ pub async fn spawn_app() -> TestApp {
         .expect("error configuring server");
     let address = format!("http://localhost:{}", server.address().port());
     let app = TestApp {
-        port: server.address().port(),
         address,
         client: HttpClient { inner: client },
-        drive_base: configuration.application.drive,
     };
     tokio::spawn(async move { server.serve().await.unwrap() });
+    tokio::time::sleep(Duration::from_millis(p)).await;
     app
 }
 
@@ -103,39 +104,66 @@ impl HttpClient {
             .expect("failed to download file"))
     }
 
-    pub async fn list(&self, address: &str) -> anyhow::Result<reqwest::Response> {
-        Ok(self
-            .inner
+    pub async fn list(&self, address: &str, path: &str) -> Vec<DriveView> {
+        let address = format!("{}/v1/drive?path={path}", address);
+        self.inner
             .get(address)
             .send()
             .await
-            .expect("failed to delete file"))
+            .unwrap()
+            .text()
+            .await
+            .map(|r| serde_json::from_str::<serde_json::Value>(&r).unwrap()["result"].clone())
+            .map(|r| serde_json::from_value::<Vec<DriveView>>(r))
+            .unwrap()
+            .unwrap()
     }
 
-    pub async fn update_dir(&self, address: &str) -> anyhow::Result<reqwest::Response> {
-        Ok(self
-            .inner
+    pub async fn update_dir(&self, address: &str, dir: &str, new_dir: &str) -> reqwest::Response {
+        let to = if !new_dir.is_empty() {
+            "to=".to_string() + new_dir
+        } else {
+            "".to_string()
+        };
+        let from = if !dir.is_empty() {
+            "from=".to_string() + dir + "&"
+        } else {
+            "".to_string()
+        };
+        let address = format!("{}/v1/drive?{from}{to}", address);
+        self.inner
             .put(address)
             .send()
             .await
-            .expect("failed to delete file"))
+            .expect("failed to update file")
     }
 
-    pub async fn delete_dir(&self, address: &str) -> anyhow::Result<reqwest::Response> {
-        Ok(self
-            .inner
+    pub async fn delete_dir(&self, address: &str, path: &str) -> reqwest::Response {
+        let path = if !path.is_empty() {
+            "path=".to_string() + path
+        } else {
+            "".to_string()
+        };
+        let address = format!("{}/v1/drive?{path}", address);
+        self.inner
             .delete(address)
             .send()
             .await
-            .expect("failed to delete file"))
+            .expect("failed to delete file")
     }
-    pub async fn create_dir(&self, address: &str) -> anyhow::Result<reqwest::Response> {
-        Ok(self
-            .inner
+
+    pub async fn create_dir(&self, address: &str, path: &str) -> reqwest::Response {
+        let path = if !path.is_empty() {
+            "path=".to_string() + path
+        } else {
+            "".to_string()
+        };
+        let address = format!("{}/v1/drive?{path}", address);
+        self.inner
             .post(address)
             .send()
             .await
-            .expect("failed to delete file"))
+            .expect("failed to delete file")
     }
 
     pub async fn delete_file(&self, address: &str) -> anyhow::Result<reqwest::Response> {

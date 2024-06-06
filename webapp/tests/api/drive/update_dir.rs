@@ -5,12 +5,8 @@ use crate::helpers::spawn_app;
 #[tokio::test]
 async fn when_to_parameter_is_missing_returns_a_400() {
     let app = spawn_app().await;
-    let address = format!("{}/v1/drive?from=something", app.address);
-    let response = app
-        .client
-        .update_dir(&address)
-        .await
-        .expect("error creating directory");
+
+    let response = app.client.update_dir(&app.address, "/", "").await;
     assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
     assert_eq!(
         "Failed to deserialize query string: missing field `to`",
@@ -20,12 +16,8 @@ async fn when_to_parameter_is_missing_returns_a_400() {
 #[tokio::test]
 async fn when_from_parameter_is_missing_returns_a_400() {
     let app = spawn_app().await;
-    let address = format!("{}/v1/drive?to=something", app.address);
-    let response = app
-        .client
-        .update_dir(&address)
-        .await
-        .expect("error creating directory");
+
+    let response = app.client.update_dir(&app.address, "", "/").await;
     assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
     assert_eq!(
         "Failed to deserialize query string: missing field `from`",
@@ -36,20 +28,10 @@ async fn when_from_parameter_is_missing_returns_a_400() {
 #[tokio::test]
 async fn when_to_parameter_is_forbidden_returns_500() {
     let app = spawn_app().await;
-
     let dir = crate::helpers::random_name(10);
-    let address = format!("{}/v1/drive?path={dir}", app.address);
-    app.client
-        .create_dir(&address)
-        .await
-        .expect("error creating directory");
+    app.client.create_dir(&app.address, &dir).await;
 
-    let address = format!("{}/v1/drive?to=/something&from={dir}", app.address);
-    let response = app
-        .client
-        .update_dir(&address)
-        .await
-        .expect("error sending files");
+    let response = app.client.update_dir(&app.address, &dir, "/no-dir").await;
     assert_eq!(
         response.status(),
         reqwest::StatusCode::INTERNAL_SERVER_ERROR
@@ -61,18 +43,9 @@ async fn when_to_parameter_is_forbidden_returns_500() {
 async fn when_from_parameter_is_forbidden_returns_500() {
     let app = spawn_app().await;
     let dir = crate::helpers::random_name(10);
-    let address = format!("{}/v1/drive?path={dir}", app.address);
-    app.client
-        .create_dir(&address)
-        .await
-        .expect("error creating directory");
+    app.client.create_dir(&app.address, &dir).await;
 
-    let address = format!("{}/v1/drive?from=/no-existant&to={dir}", app.address);
-    let response = app
-        .client
-        .update_dir(&address)
-        .await
-        .expect("error sending files");
+    let response = app.client.update_dir(&app.address, "/no-dir", &dir).await;
     assert_eq!(
         response.status(),
         reqwest::StatusCode::INTERNAL_SERVER_ERROR
@@ -85,36 +58,14 @@ async fn when_request_is_wellformed_returns_204() {
     let app = spawn_app().await;
     let dir = crate::helpers::random_name(10);
     let new_dir = crate::helpers::random_name(10);
-    let address = format!("{}/v1/drive?path={dir}", app.address);
-    let response = app
-        .client
-        .create_dir(&address)
-        .await
-        .expect("error creating directory");
+    app.client.create_dir(&app.address, &dir).await;
+
+    let response = app.client.update_dir(&app.address, &dir, &new_dir).await;
     assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
 
-    let address = format!("{}/v1/drive?from={dir}&to={new_dir}", app.address);
-    let response = app
-        .client
-        .update_dir(&address)
-        .await
-        .expect("error sending files");
-    assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
-
-    let address = format!("{}/v1/drive?path=", app.address);
-    let response = app
-        .client
-        .list(&address)
-        .await
-        .expect("error fetching files")
-        .text()
-        .await
-        .map(|r| serde_json::from_str::<Vec<DriveView>>(&r))
-        .unwrap()
-        .unwrap();
-    println!("{response:?}");
+    let response = app.client.list(&app.address, "").await;
     let has_dir = response.contains(&DriveView {
-        path: app.drive_base + "/" + &new_dir,
+        path: new_dir,
         is_directory: true,
     });
     assert!(has_dir)

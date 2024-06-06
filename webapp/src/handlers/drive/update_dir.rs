@@ -1,4 +1,4 @@
-use crate::{application::Application, error::MiboxError};
+use crate::{application::Application, drive::Drive, error::MiboxError};
 use anyhow::Context;
 use axum::{
     debug_handler,
@@ -20,12 +20,10 @@ pub async fn update_dir_service_handler(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<UpdateDirParameters>, MiboxError>,
 ) -> Result<StatusCode, MiboxError> {
-    //TODO handle the path verification
-    let from = application.drive.join(params.from.clone());
-    let to = application.drive.join(params.to.clone());
-    tokio::fs::rename(from.clone(), to.clone())
+    Drive::new(application.drive)
+        .rename_directory(params.from, params.to)
         .await
-        .context(format!("error renaming directory {:?} -> {:?}", from, to))?;
+        .context("rename")?;
 
     Ok(StatusCode::NO_CONTENT)
 }

@@ -13,6 +13,8 @@ use std::io;
 pub struct UploadParameters {
     path: String,
 }
+
+#[tracing::instrument(name = "Upload file", skip(application))]
 pub async fn upload_service_handler(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<UploadParameters>, MiboxError>,

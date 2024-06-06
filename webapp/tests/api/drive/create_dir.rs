@@ -5,12 +5,7 @@ use crate::helpers::spawn_app;
 #[tokio::test]
 async fn when_query_parameters_are_missing_returns_a_400() {
     let app = spawn_app().await;
-    let address = format!("{}/v1/drive", app.address);
-    let response = app
-        .client
-        .create_dir(&address)
-        .await
-        .expect("error creating directory");
+    let response = app.client.create_dir(&app.address, "").await;
     assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
     assert_eq!(
         "Failed to deserialize query string: missing field `path`",
@@ -21,12 +16,7 @@ async fn when_query_parameters_are_missing_returns_a_400() {
 #[tokio::test]
 async fn when_path_parameter_is_forbidden_returns_500() {
     let app = spawn_app().await;
-    let address = format!("{}/v1/drive?path=/", app.address);
-    let response = app
-        .client
-        .create_dir(&address)
-        .await
-        .expect("error sending files");
+    let response = app.client.create_dir(&app.address, "/").await;
     assert_eq!(
         response.status(),
         reqwest::StatusCode::INTERNAL_SERVER_ERROR
@@ -38,27 +28,11 @@ async fn when_path_parameter_is_forbidden_returns_500() {
 async fn when_request_is_wellformed_returns_204() {
     let app = spawn_app().await;
     let dir = crate::helpers::random_name(10);
-    let address = format!("{}/v1/drive?path={dir}", app.address);
-    let response = app
-        .client
-        .create_dir(&address)
-        .await
-        .expect("error creating directory");
+    let response = app.client.create_dir(&app.address, &dir).await;
     assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
-    let address = format!("{}/v1/drive?path=", app.address);
-    let response = app
-        .client
-        .list(&address)
-        .await
-        .expect("error fetching files")
-        .text()
-        .await
-        .map(|r| serde_json::from_str::<Vec<DriveView>>(&r))
-        .unwrap()
-        .unwrap();
-    println!("{response:?}");
+    let response = app.client.list(&app.address, "").await;
     let has_dir = response.contains(&DriveView {
-        path: app.drive_base + "/" + &dir,
+        path: dir,
         is_directory: true,
     });
     assert!(has_dir)

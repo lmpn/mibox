@@ -1,4 +1,4 @@
-use crate::{application::Application, error::MiboxError};
+use crate::{application::Application, drive::Drive, error::MiboxError};
 use anyhow::Context;
 use axum::{
     debug_handler,
@@ -19,10 +19,10 @@ pub async fn create_dir_service_handler(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<CreateDirParameters>, MiboxError>,
 ) -> Result<StatusCode, MiboxError> {
-    let path = application.drive.join(params.path.clone());
-    tokio::fs::create_dir(path.clone())
+    Drive::new(application.drive)
+        .create_directory(params.path)
         .await
-        .context(format!("error removing directory {:?}", path))?;
+        .context("create")?;
 
     Ok(StatusCode::NO_CONTENT)
 }

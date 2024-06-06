@@ -1,14 +1,14 @@
-use crate::{application::Application, error::MiboxError};
+use crate::{application::Application, drive::Drive, error::MiboxError};
 use anyhow::{anyhow, Context};
 use axum::{
     debug_handler,
     extract::{Query, State},
     http::{header::ACCEPT, HeaderMap},
-    Json,
+    response::IntoResponse,
 };
 use axum_extra::extract::WithRejection;
 use serde::{Deserialize, Serialize};
-use tokio::fs::read_dir;
+use serde_json::json;
 
 #[derive(Debug, Deserialize)]
 pub struct ListParameters {
@@ -27,29 +27,37 @@ pub async fn list_service_handler(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<ListParameters>, MiboxError>,
     headers: HeaderMap,
-) -> Result<Json<Vec<DriveView>>, MiboxError> {
-    let path = application.drive.join(params.path.clone());
-    path.canonicalize().context("non-canonical path")?;
-    let mut directory = read_dir(path).await.context("cannot read dir")?;
-    let mut view = vec![];
-    while let Some(entry) = directory.next_entry().await.context("error iterating")? {
-        let is_dir = !entry.metadata().await.context("metadata error")?.is_file();
-        let path = entry
-            .path()
-            .into_os_string()
-            .to_str()
-            .unwrap_or("")
-            .to_string();
-        let drive = DriveView {
-            is_directory: is_dir,
-            path,
-        };
-        view.push(drive);
-    }
+) -> Result<impl IntoResponse, MiboxError> {
+    let entries = Drive::new(application.drive)
+        .entries(params.path)
+        .await
+        .context("list")?;
+
+    let view = entries
+        .iter()
+        .map(|elem| {
+            let path = match elem.name() {
+                Some(path) => path,
+                None => return None,
+            };
+
+            Some(DriveView {
+                is_directory: elem.is_directory(),
+                path,
+            })
+        })
+        .filter(Option::is_some)
+        .map(Option::unwrap)
+        .collect::<Vec<DriveView>>();
+
     let accept_header = headers.get(ACCEPT).context("no accept header")?;
     let accept_header = accept_header.to_str().context("invalid accept header")?;
     if accept_header.contains("*/*") || accept_header.contains("application/json") {
-        return Ok(axum::Json(view));
+        let j = json!({
+            "result" : view
+        });
+        let j = serde_json::to_value(j).context("error serializing response")?;
+        return Ok(axum::Json(j));
     }
     return Err(MiboxError::UnexpectedError(anyhow!(
         "invalid accept header value"

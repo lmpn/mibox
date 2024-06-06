@@ -3,7 +3,8 @@ use crate::helpers::spawn_app;
 #[tokio::test]
 async fn when_file_does_not_exist_returns_500() {
     let app = spawn_app().await;
-    let address = format!("{}/v1/file?path=hello.txt", app.address);
+    let file = crate::helpers::random_name(10);
+    let address = format!("{}/v1/file?path={file}", app.address);
     let response = app
         .client
         .delete_file(&address)

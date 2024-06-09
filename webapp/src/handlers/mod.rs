@@ -1,4 +1,4 @@
-pub mod drive;
+pub mod directory;
 mod fallback;
 pub mod file;
 pub use fallback::*;

@@ -1,12 +1,10 @@
-use anyhow::Context;
 use once_cell::sync::Lazy;
 use rand::Rng;
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
-use tracing::error;
 use webapp::configuration::get_configuration;
-use webapp::handlers::drive::DriveView;
+use webapp::handlers::directory::DriveView;
 use webapp::server::Server;
 use webapp::telemetry;
 
@@ -188,6 +186,7 @@ pub fn random_name(len: usize) -> String {
     (0..len).map(get_random_char).collect::<String>()
 }
 
+#[allow(dead_code)]
 pub fn random_file(base_path: String) -> PathBuf {
     let name = random_name(10);
     let path = PathBuf::from(base_path).join(name);

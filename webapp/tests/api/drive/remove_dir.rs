@@ -1,4 +1,4 @@
-use webapp::handlers::drive::DriveView;
+use webapp::handlers::directory::DriveView;
 
 use crate::helpers::spawn_app;
 

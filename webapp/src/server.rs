@@ -2,7 +2,7 @@ use crate::{
     application::Application,
     configuration::Settings,
     handlers::{
-        drive::{
+        directory::{
             create_dir_service_handler, list_service_handler, remove_dir_service_handler,
             update_dir_service_handler,
         },

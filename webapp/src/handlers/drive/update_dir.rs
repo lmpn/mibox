@@ -1,4 +1,4 @@
-use crate::{application::Application, drive::Drive, error::MiboxError};
+use crate::{application::Application, error::MiboxError};
 use anyhow::Context;
 use axum::{
     debug_handler,
@@ -6,6 +6,7 @@ use axum::{
     http::StatusCode,
 };
 use axum_extra::extract::WithRejection;
+use drive::Drive;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

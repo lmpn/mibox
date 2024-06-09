@@ -1,4 +1,4 @@
-use crate::{application::Application, drive::Drive, error::MiboxError};
+use crate::{application::Application, error::MiboxError};
 use anyhow::{anyhow, Context};
 use axum::{
     debug_handler,
@@ -7,6 +7,7 @@ use axum::{
     response::IntoResponse,
 };
 use axum_extra::extract::WithRejection;
+use drive::Drive;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 

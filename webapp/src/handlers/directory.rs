@@ -67,7 +67,7 @@ pub async fn list_service_handler(
             })
         })
         .filter(Option::is_some)
-        .map(Option::unwrap)
+        .flatten()
         .collect::<Vec<DirectoryView>>();
 
     let accept_header = headers.get(ACCEPT).context("no accept header")?;

@@ -27,7 +27,7 @@ impl Drive {
                 path.as_ref()
             )));
         }
-        return Ok(());
+        Ok(())
     }
 
     /// Validates that the provided path does not walk through the
@@ -40,11 +40,7 @@ impl Drive {
         if !path
             .as_ref()
             .components()
-            .into_iter()
-            .all(|component| match component {
-                std::path::Component::Normal(_) => true,
-                _ => false,
-            })
+            .all(|component| matches!(component, std::path::Component::Normal(_)))
         {
             return Err(DriveError::EntryNameInvalid(format!(
                 "{:?} invalid",
@@ -60,7 +56,7 @@ impl Drive {
     /// The entry will only be created if the path exists and there are no
     /// path walks in the final path (Self::entry_valid).
     fn entry(&self, path: impl AsRef<Path>) -> Result<entry::Entry> {
-        let entry = self.entry_valid(&path.as_ref().to_path_buf())?;
+        let entry = self.entry_valid(path.as_ref())?;
         Self::entry_exists(&entry)?;
         let metadata = entry.metadata().map_err(DriveError::EntryMetadata)?;
         Ok(entry::Entry::new(entry, Some(metadata)))
@@ -69,7 +65,7 @@ impl Drive {
     /// The method that returns a PathBuf after checking it doesn't exists
     /// and there are no path walks in the final path (Self::entry_valid).
     fn entry_non_existant(&self, path: impl AsRef<Path>) -> Result<PathBuf> {
-        let entry = self.entry_valid(&path.as_ref().to_path_buf())?;
+        let entry = self.entry_valid(path.as_ref())?;
         if Self::entry_exists(&entry).is_ok() {
             return Err(DriveError::EntryExists(format!(
                 "{:?} already exists",
@@ -113,7 +109,7 @@ impl Drive {
     /// An error will be returned if the path does not correspond to a directory.
     pub async fn entries(&self, path: impl AsRef<Path>) -> Result<Vec<Entry>> {
         let path = if path.as_ref().as_os_str().is_empty() {
-            &self.base
+            self.base.clone()
         } else {
             let entry = self.entry(path)?;
             if !(entry.is_directory()) {
@@ -122,7 +118,7 @@ impl Drive {
                     entry
                 )));
             }
-            &entry.path().to_path_buf()
+            entry.path().to_path_buf()
         };
         let mut entries = vec![];
         let mut directory = tokio::fs::read_dir(path)
@@ -153,14 +149,14 @@ impl Drive {
         let entry = self.entry(path)?;
         if entry.is_directory() {
             return Err(DriveError::EntryUnexpectedType(
-                "Entry is a directory".to_owned(),
+                "Entry is a directory".to_string(),
             ));
         }
         let file = tokio::fs::File::open(entry.path())
             .await
-            .map_err(|_e| DriveError::EntryNameInvalid(format!("invalid path")))?;
+            .map_err(|_e| DriveError::EntryNameInvalid("invalid path".to_string()))?;
         let reader = ReaderStream::new(file);
-        return Ok::<ReaderStream<tokio::fs::File>, DriveError>(reader.into());
+        Ok::<ReaderStream<tokio::fs::File>, DriveError>(reader)
     }
 
     /// Writes the contents of the stream into a file.
@@ -177,7 +173,7 @@ impl Drive {
         let entry_to = self.entry_valid(path.as_ref())?;
         let file = tokio::fs::File::create(entry_to)
             .await
-            .map_err(|_e| DriveError::EntryNameInvalid(format!("invalid path")))?;
+            .map_err(|_e| DriveError::EntryNameInvalid("invalid path".to_string()))?;
         pin! {
             let reader = tokio_util::io::StreamReader::new(stream);
             let writer = tokio::io::BufWriter::new(file);

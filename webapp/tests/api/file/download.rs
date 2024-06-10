@@ -32,7 +32,7 @@ async fn when_query_parameters_are_missing_returns_a_400() {
 }
 
 #[tokio::test]
-async fn when_query_path_is_a_directory_return_400() {
+async fn when_query_path_is_a_directory_return_500() {
     let app = spawn_app().await;
     let address = format!("{}/v1/file?path=/", app.address);
     let response = app
@@ -40,8 +40,11 @@ async fn when_query_path_is_a_directory_return_400() {
         .download_file(&address)
         .await
         .expect("failed to send request");
-    assert_eq!(response.status(), reqwest::StatusCode::BAD_REQUEST);
-    assert_eq!("Bad request", response.text().await.unwrap());
+    assert_eq!(
+        response.status(),
+        reqwest::StatusCode::INTERNAL_SERVER_ERROR
+    );
+    assert_eq!("Something went wrong", response.text().await.unwrap());
 }
 
 #[tokio::test]

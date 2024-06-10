@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 
 use bytes::Buf;
 use error::DriveError;
-use tokio::io::AsyncReadExt;
 use tokio::pin;
 use tokio_util::io::ReaderStream;
 pub mod entry;
@@ -21,20 +20,25 @@ impl Drive {
     }
 
     /// Checks if the path exists and if not an error is returned.
-    fn entry_exists(path: &PathBuf) -> Result<()> {
-        if !path.exists() {
-            return Err(DriveError::EntryNotFound(format!("{:?} not found", path)));
+    fn entry_exists(path: impl AsRef<Path>) -> Result<()> {
+        if !path.as_ref().exists() {
+            return Err(DriveError::EntryNotFound(format!(
+                "{:?} not found",
+                path.as_ref()
+            )));
         }
         return Ok(());
     }
 
     /// Validates that the provided path does not walk through the
-    /// file tree and if so an error is returned.
+    /// file tree and if so an error is returned otherwise returns a path
+    /// with the base as prefix
     ///
     /// This is achieved by checking if all the path components
     /// are of type std::path::Component::Normal.
-    fn entry_valid(path: &PathBuf) -> Result<()> {
+    fn entry_valid(&self, path: impl AsRef<Path>) -> Result<PathBuf> {
         if !path
+            .as_ref()
             .components()
             .into_iter()
             .all(|component| match component {
@@ -42,18 +46,21 @@ impl Drive {
                 _ => false,
             })
         {
-            return Err(DriveError::EntryNameInvalid(format!("{:?} invalid", path)));
+            return Err(DriveError::EntryNameInvalid(format!(
+                "{:?} invalid",
+                path.as_ref()
+            )));
         }
-        Ok(())
+        let entry = self.base.join(path);
+        Ok(entry)
     }
 
     /// The method that create an entry given a path.
     ///
     /// The entry will only be created if the path exists and there are no
     /// path walks in the final path (Self::entry_valid).
-    async fn entry(&self, path: impl AsRef<Path>) -> Result<entry::Entry> {
-        Self::entry_valid(&path.as_ref().to_path_buf())?;
-        let entry = self.base.join(path);
+    fn entry(&self, path: impl AsRef<Path>) -> Result<entry::Entry> {
+        let entry = self.entry_valid(&path.as_ref().to_path_buf())?;
         Self::entry_exists(&entry)?;
         let metadata = entry.metadata().map_err(DriveError::EntryMetadata)?;
         Ok(entry::Entry::new(entry, Some(metadata)))
@@ -62,8 +69,7 @@ impl Drive {
     /// The method that returns a PathBuf after checking it doesn't exists
     /// and there are no path walks in the final path (Self::entry_valid).
     fn entry_non_existant(&self, path: impl AsRef<Path>) -> Result<PathBuf> {
-        Self::entry_valid(&path.as_ref().to_path_buf())?;
-        let entry = self.base.join(path);
+        let entry = self.entry_valid(&path.as_ref().to_path_buf())?;
         if Self::entry_exists(&entry).is_ok() {
             return Err(DriveError::EntryExists(format!(
                 "{:?} already exists",
@@ -89,7 +95,7 @@ impl Drive {
         from: impl AsRef<Path>,
         to: impl AsRef<Path>,
     ) -> Result<()> {
-        let entry_from = self.entry(from).await?;
+        let entry_from = self.entry(from)?;
         let entry_to = self.entry_non_existant(to)?;
         if !(entry_from.is_directory()) {
             return Err(DriveError::EntryUnexpectedType(format!(
@@ -109,7 +115,7 @@ impl Drive {
         let path = if path.as_ref().as_os_str().is_empty() {
             &self.base
         } else {
-            let entry = self.entry(path).await?;
+            let entry = self.entry(path)?;
             if !(entry.is_directory()) {
                 return Err(DriveError::EntryUnexpectedType(format!(
                     "{:?} is not an directory",
@@ -138,53 +144,38 @@ impl Drive {
         Ok(entries)
     }
 
-    pub async fn download_file<
-        B: Buf,
-        S: futures_core::Stream<Item = std::result::Result<B, std::io::Error>>,
-    >(
+    /// Reads the file provided by the path as a stream.
+    pub async fn read(
         &self,
-        path: PathBuf,
-    ) -> Result<S> {
-        let entry = self.entry(path).await?;
-        if entry.is_directory() {}
+        path: impl AsRef<Path>,
+    ) -> Result<impl futures_core::Stream<Item = std::result::Result<bytes::Bytes, std::io::Error>>>
+    {
+        let entry = self.entry(path)?;
+        if entry.is_directory() {
+            return Err(DriveError::EntryUnexpectedType(
+                "Entry is a directory".to_owned(),
+            ));
+        }
         let file = tokio::fs::File::open(entry.path())
             .await
             .map_err(|_e| DriveError::EntryNameInvalid(format!("invalid path")))?;
         let reader = ReaderStream::new(file);
-        return Ok(reader);
-
-        // let path = application.drive.join(params.path.clone());
-        // let file = tokio::fs::File::open(path.clone())
-        //     .await
-        //     .context(format!("error opening file {:?}", path))?;
-        //
-        // if file.metadata().await.context("no metadata")?.is_file() {
-        //     let reader = ReaderStream::new(file);
-        //     let body = Body::from_stream(reader);
-        //
-        //     let headers = [
-        //         (header::CONTENT_TYPE, "text/toml; charset=utf-8".to_owned()),
-        //         (
-        //             header::CONTENT_DISPOSITION,
-        //             format!(
-        //                 "attachment; filename=\"{}\"",
-        //                 params.path.split('/').last().unwrap_or("")
-        //             ),
-        //         ),
-        //     ];
-        //
-        //     return Ok((headers, body));
+        return Ok::<ReaderStream<tokio::fs::File>, DriveError>(reader.into());
     }
 
-    pub async fn upload_file<
+    /// Writes the contents of the stream into a file.
+    ///
+    /// If destination file exists then it will be overwritten.
+    pub async fn write<
         B: Buf,
         S: futures_core::Stream<Item = std::result::Result<B, std::io::Error>>,
     >(
         &self,
         stream: S,
-        path: PathBuf,
+        path: impl AsRef<Path>,
     ) -> Result<()> {
-        let file = tokio::fs::File::create(path.clone())
+        let entry_to = self.entry_valid(path.as_ref())?;
+        let file = tokio::fs::File::create(entry_to)
             .await
             .map_err(|_e| DriveError::EntryNameInvalid(format!("invalid path")))?;
         pin! {

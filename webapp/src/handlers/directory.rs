@@ -36,7 +36,7 @@ pub struct ListParameters {
 }
 
 #[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
-pub struct DriveView {
+pub struct DirectoryView {
     pub path: String,
     pub is_directory: bool,
 }
@@ -61,14 +61,14 @@ pub async fn list_service_handler(
                 None => return None,
             };
 
-            Some(DriveView {
+            Some(DirectoryView {
                 is_directory: elem.is_directory(),
                 path,
             })
         })
         .filter(Option::is_some)
         .map(Option::unwrap)
-        .collect::<Vec<DriveView>>();
+        .collect::<Vec<DirectoryView>>();
 
     let accept_header = headers.get(ACCEPT).context("no accept header")?;
     let accept_header = accept_header.to_str().context("invalid accept header")?;

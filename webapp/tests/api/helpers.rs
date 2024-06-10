@@ -4,7 +4,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
 use webapp::configuration::get_configuration;
-use webapp::handlers::directory::DriveView;
+use webapp::handlers::directory::DirectoryView;
 use webapp::server::Server;
 use webapp::telemetry;
 
@@ -102,8 +102,8 @@ impl HttpClient {
             .expect("failed to download file"))
     }
 
-    pub async fn list(&self, address: &str, path: &str) -> Vec<DriveView> {
-        let address = format!("{}/v1/drive?path={path}", address);
+    pub async fn list(&self, address: &str, path: &str) -> Vec<DirectoryView> {
+        let address = format!("{}/v1/directory?path={path}", address);
         self.inner
             .get(address)
             .send()
@@ -112,7 +112,7 @@ impl HttpClient {
             .text()
             .await
             .map(|r| serde_json::from_str::<serde_json::Value>(&r).unwrap()["result"].clone())
-            .map(|r| serde_json::from_value::<Vec<DriveView>>(r))
+            .map(|r| serde_json::from_value::<Vec<DirectoryView>>(r))
             .unwrap()
             .unwrap()
     }
@@ -128,7 +128,7 @@ impl HttpClient {
         } else {
             "".to_string()
         };
-        let address = format!("{}/v1/drive?{from}{to}", address);
+        let address = format!("{}/v1/directory?{from}{to}", address);
         self.inner
             .put(address)
             .send()
@@ -142,7 +142,7 @@ impl HttpClient {
         } else {
             "".to_string()
         };
-        let address = format!("{}/v1/drive?{path}", address);
+        let address = format!("{}/v1/directory?{path}", address);
         self.inner
             .delete(address)
             .send()
@@ -156,7 +156,7 @@ impl HttpClient {
         } else {
             "".to_string()
         };
-        let address = format!("{}/v1/drive?{path}", address);
+        let address = format!("{}/v1/directory?{path}", address);
         self.inner
             .post(address)
             .send()

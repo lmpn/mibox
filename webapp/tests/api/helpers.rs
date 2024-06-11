@@ -57,8 +57,14 @@ impl HttpClient {
     pub async fn upload_files(
         &self,
         address: &str,
+        path: Option<&str>,
         files: Vec<(&str, &str)>,
     ) -> anyhow::Result<reqwest::Response> {
+        let address = if let Some(path) = path {
+            format!("{}/api/v1/file?path={path}", address)
+        } else {
+            format!("{}/api/v1/file", address)
+        };
         if files.is_empty() {
             return Ok(self.inner.post(address).send().await?);
         }
@@ -103,7 +109,7 @@ impl HttpClient {
     }
 
     pub async fn list(&self, address: &str, path: &str) -> Vec<DirectoryView> {
-        let address = format!("{}/v1/directory?path={path}", address);
+        let address = format!("{}/api/v1/directory?path={path}", address);
         self.inner
             .get(address)
             .send()
@@ -128,7 +134,7 @@ impl HttpClient {
         } else {
             "".to_string()
         };
-        let address = format!("{}/v1/directory?{from}{to}", address);
+        let address = format!("{}/api/v1/directory?{from}{to}", address);
         self.inner
             .put(address)
             .send()
@@ -142,7 +148,7 @@ impl HttpClient {
         } else {
             "".to_string()
         };
-        let address = format!("{}/v1/directory?{path}", address);
+        let address = format!("{}/api/v1/directory?{path}", address);
         self.inner
             .delete(address)
             .send()
@@ -156,7 +162,7 @@ impl HttpClient {
         } else {
             "".to_string()
         };
-        let address = format!("{}/v1/directory?{path}", address);
+        let address = format!("{}/api/v1/directory?{path}", address);
         self.inner
             .post(address)
             .send()

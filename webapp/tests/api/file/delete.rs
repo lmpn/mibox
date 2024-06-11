@@ -4,7 +4,7 @@ use crate::helpers::spawn_app;
 async fn when_file_does_not_exist_returns_500() {
     let app = spawn_app().await;
     let file = crate::helpers::random_name(10);
-    let address = format!("{}/v1/file?path={file}", app.address);
+    let address = format!("{}/api/v1/file?path={file}", app.address);
     let response = app
         .client
         .delete_file(&address)
@@ -19,7 +19,7 @@ async fn when_file_does_not_exist_returns_500() {
 #[tokio::test]
 async fn when_query_parameters_are_missing_returns_a_400() {
     let app = spawn_app().await;
-    let address = format!("{}/v1/file", app.address);
+    let address = format!("{}/api/v1/file", app.address);
     let response = app
         .client
         .delete_file(&address)
@@ -35,7 +35,7 @@ async fn when_query_parameters_are_missing_returns_a_400() {
 #[tokio::test]
 async fn when_query_path_is_a_directory_return_400() {
     let app = spawn_app().await;
-    let address = format!("{}/v1/file?path=/", app.address);
+    let address = format!("{}/api/v1/file?path=/", app.address);
     let response = app
         .client
         .delete_file(&address)
@@ -51,12 +51,11 @@ async fn when_query_path_is_a_directory_return_400() {
 #[tokio::test]
 async fn when_request_is_wellformed_returns_200() {
     let app = spawn_app().await;
-    let address = format!("{}/v1/file?path=", app.address);
     app.client
-        .upload_files(&address, vec![("Cargo.toml", "dummy2.txt")])
+        .upload_files(&app.address, Some(""), vec![("Cargo.toml", "dummy2.txt")])
         .await
         .expect("failed to send request");
-    let address = format!("{}/v1/file?path=dummy2.txt", app.address);
+    let address = format!("{}/api/v1/file?path=dummy2.txt", app.address);
     let response = app
         .client
         .delete_file(&address)

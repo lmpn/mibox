@@ -73,8 +73,7 @@ impl Server {
     }
 
     pub async fn create_router(&self) -> anyhow::Result<Router> {
-        Ok(Router::new()
-            .fallback(fallback_service_handler)
+        let api = Router::new()
             .route("/v1/file", post(upload_service_handler))
             .route("/v1/file", get(download_service_handler))
             .route("/v1/file", delete(delete_service_handler))
@@ -82,8 +81,11 @@ impl Server {
             .route("/v1/directory", put(update_dir_service_handler))
             .route("/v1/directory", post(create_dir_service_handler))
             .route("/v1/directory", delete(remove_dir_service_handler))
+            .with_state(self.application.clone());
+        Ok(Router::new()
+            .fallback(fallback_service_handler)
             .route("/health_check", get(health_check_service_handler))
-            .with_state(self.application.clone())
+            .nest("/api", api)
             .layer(middleware::from_fn(secure_headers_layer))
             .layer(tracing_layer()))
     }

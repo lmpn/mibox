@@ -86,7 +86,8 @@ impl Server {
         Ok(Router::new()
             .fallback(fallback_service_handler)
             .route("/health_check", get(health_check_service_handler))
-            .route("/home", get(home))
+            .route("/", get(home))
+            .nest_service("/static", tower_http::services::ServeDir::new("static"))
             .nest("/api", api)
             .layer(middleware::from_fn(secure_headers_layer))
             .layer(tracing_layer()))
@@ -151,12 +152,18 @@ async fn secure_headers_layer(request: Request, next: Next) -> Response {
 }
 
 #[derive(Template)]
-#[template(path = "home.page.html", print = "all", whitespace = "suppress")]
+#[template(path = "home.page.html")]
 struct HomeTemplate<'a> {
-    name: &'a str,
+    title: &'a str,
 }
 
 #[tracing::instrument(name = "Home")]
 pub async fn home() -> HomeTemplate<'static> {
-    HomeTemplate { name: "world" }
+    HomeTemplate { title: "Mibox" }
 }
+
+// #[derive(Template)]
+// #[template(path = "signup.page.html")]
+// struct SignUpTemplate<'a> {
+//     title: &'a str,
+// }

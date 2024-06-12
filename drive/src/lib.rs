@@ -171,9 +171,9 @@ impl Drive {
         path: impl AsRef<Path>,
     ) -> Result<()> {
         let entry_to = self.entry_valid(path.as_ref())?;
-        let file = tokio::fs::File::create(entry_to)
+        let file = tokio::fs::File::create(entry_to.as_path())
             .await
-            .map_err(|_e| DriveError::EntryNameInvalid("invalid path".to_string()))?;
+            .map_err(|_e| DriveError::EntryNameInvalid(format!("{:?} invalid path", entry_to)))?;
         pin! {
             let reader = tokio_util::io::StreamReader::new(stream);
             let writer = tokio::io::BufWriter::new(file);

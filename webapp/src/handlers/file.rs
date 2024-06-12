@@ -68,7 +68,7 @@ pub struct UploadParameters {
     path: String,
 }
 
-#[tracing::instrument(name = "File upload", skip(application))]
+#[tracing::instrument(name = "File upload", skip(application, multipart))]
 pub async fn upload_service_handler(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<UploadParameters>, MiboxError>,

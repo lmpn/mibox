@@ -11,6 +11,7 @@ use crate::{
         health_check_service_handler,
     },
 };
+use askama_axum::Template;
 use axum::{
     body::Body,
     extract::Request,
@@ -85,6 +86,7 @@ impl Server {
         Ok(Router::new()
             .fallback(fallback_service_handler)
             .route("/health_check", get(health_check_service_handler))
+            .route("/home", get(home))
             .nest("/api", api)
             .layer(middleware::from_fn(secure_headers_layer))
             .layer(tracing_layer()))
@@ -146,4 +148,15 @@ async fn secure_headers_layer(request: Request, next: Next) -> Response {
         HeaderValue::from_static("1; mode=block"),
     );
     response
+}
+
+#[derive(Template)]
+#[template(path = "home.page.html", print = "all", whitespace = "suppress")]
+struct HomeTemplate<'a> {
+    name: &'a str,
+}
+
+#[tracing::instrument(name = "Home")]
+pub async fn home() -> HomeTemplate<'static> {
+    HomeTemplate { name: "world" }
 }

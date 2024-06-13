@@ -1,4 +1,4 @@
-use webapp::handlers::directory::DirectoryView;
+use webapp::handlers::directory::EntryView;
 
 use crate::helpers::spawn_app;
 
@@ -64,8 +64,9 @@ async fn when_request_is_wellformed_returns_204() {
     assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
 
     let response = app.client.list(&app.address, "").await;
-    let has_dir = response.contains(&DirectoryView {
-        path: new_dir,
+    let has_dir = response.results.contains(&EntryView {
+        path: new_dir.clone(),
+        name: new_dir,
         is_directory: true,
     });
     assert!(has_dir)

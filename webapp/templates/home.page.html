@@ -3,4 +3,5 @@
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
 <h2>Drive</h2>
+<div hx-get="/directory?path=" hx-swap="outerHTML" hx-trigger="load"> 
 {% endblock content %}

@@ -1,9 +1,10 @@
 use crate::{application::Application, error::MiboxError};
-use anyhow::{anyhow, Context};
+use anyhow::Context;
+use askama::Template;
 use axum::{
     debug_handler,
     extract::{Query, State},
-    http::{header::ACCEPT, HeaderMap, StatusCode},
+    http::StatusCode,
     response::IntoResponse,
 };
 use axum_extra::extract::WithRejection;
@@ -36,52 +37,97 @@ pub struct ListParameters {
 }
 
 #[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
-pub struct DirectoryView {
+pub struct EntryView {
     pub path: String,
+    pub name: String,
     pub is_directory: bool,
 }
 
-#[tracing::instrument(name = "Drive listing", skip(application, headers))]
+#[derive(PartialEq, Eq, Debug, Deserialize, Serialize)]
+pub struct DirectoryView {
+    pub results: Vec<EntryView>,
+}
+
+#[derive(Template)]
+#[template(path = "directory.partial.html")]
+struct DirectoryPartialTemplate {
+    items: Vec<EntryView>,
+}
+
+#[tracing::instrument(name = "Directory html listing", skip(application))]
 #[debug_handler]
-pub async fn list_service_handler(
+pub async fn html_list_service_handler(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<ListParameters>, MiboxError>,
-    headers: HeaderMap,
 ) -> Result<impl IntoResponse, MiboxError> {
     let entries = Drive::new(application.drive)
-        .entries(params.path)
+        .entries(&params.path)
         .await
-        .context("list")?;
+        .context("error listing directory")?;
 
     let view = entries
         .iter()
         .map(|elem| {
-            let path = match elem.name() {
+            let name = match elem.name() {
                 Some(path) => path,
                 None => return None,
             };
 
-            Some(DirectoryView {
+            let path = if params.path == "" {
+                name.clone()
+            } else {
+                format!("{}/{name}", params.path)
+            };
+
+            Some(EntryView {
                 is_directory: elem.is_directory(),
                 path,
+                name,
             })
         })
         .filter(Option::is_some)
         .flatten()
-        .collect::<Vec<DirectoryView>>();
+        .collect::<Vec<EntryView>>();
+    Ok(DirectoryPartialTemplate { items: view })
+}
+#[tracing::instrument(name = "Directory listing", skip(application))]
+#[debug_handler]
+pub async fn list_service_handler(
+    State(application): State<Application>,
+    WithRejection(Query(params), _): WithRejection<Query<ListParameters>, MiboxError>,
+) -> Result<impl IntoResponse, MiboxError> {
+    let entries = Drive::new(application.drive)
+        .entries(&params.path)
+        .await
+        .context("error listing directory")?;
 
-    let accept_header = headers.get(ACCEPT).context("no accept header")?;
-    let accept_header = accept_header.to_str().context("invalid accept header")?;
-    if accept_header.contains("*/*") || accept_header.contains("application/json") {
-        let j = json!({
-            "result" : view
-        });
-        let j = serde_json::to_value(j).context("error serializing response")?;
-        return Ok(axum::Json(j));
-    }
-    return Err(MiboxError::UnexpectedError(anyhow!(
-        "invalid accept header value"
-    )));
+    let view = entries
+        .iter()
+        .map(|elem| {
+            let name = match elem.name() {
+                Some(path) => path,
+                None => return None,
+            };
+
+            let path = if params.path == "" {
+                name.clone()
+            } else {
+                format!("{}/{name}", params.path)
+            };
+
+            Some(EntryView {
+                is_directory: elem.is_directory(),
+                path,
+                name,
+            })
+        })
+        .filter(Option::is_some)
+        .flatten()
+        .collect::<Vec<EntryView>>();
+    let view = DirectoryView { results: view };
+    let raw = json!(view);
+    let json = serde_json::to_value(raw).context("error serializing response")?;
+    Ok(axum::Json(json))
 }
 
 #[derive(Debug, Deserialize)]

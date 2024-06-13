@@ -1,5 +1,5 @@
 use crate::helpers::spawn_app;
-use webapp::handlers::directory::DirectoryView;
+use webapp::handlers::directory::EntryView;
 
 #[tokio::test]
 async fn when_query_parameters_are_missing_returns_a_400() {
@@ -34,8 +34,9 @@ async fn when_request_is_wellformed_returns_204() {
     let response = app.client.delete_dir(&app.address, &dir).await;
     assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
     let response = app.client.list(&app.address, "").await;
-    let has_dir = !response.contains(&DirectoryView {
-        path: dir,
+    let has_dir = !response.results.contains(&EntryView {
+        path: dir.clone(),
+        name: dir,
         is_directory: true,
     });
     assert!(has_dir)

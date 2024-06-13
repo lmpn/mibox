@@ -3,8 +3,8 @@ use crate::{
     configuration::Settings,
     handlers::{
         directory::{
-            create_dir_service_handler, list_service_handler, remove_dir_service_handler,
-            update_dir_service_handler,
+            create_dir_service_handler, html_list_service_handler, list_service_handler,
+            remove_dir_service_handler, update_dir_service_handler,
         },
         fallback_service_handler,
         file::{delete_service_handler, download_service_handler, upload_service_handler},
@@ -81,16 +81,17 @@ impl Server {
             .route("/v1/directory", get(list_service_handler))
             .route("/v1/directory", put(update_dir_service_handler))
             .route("/v1/directory", post(create_dir_service_handler))
-            .route("/v1/directory", delete(remove_dir_service_handler))
-            .with_state(self.application.clone());
+            .route("/v1/directory", delete(remove_dir_service_handler));
         Ok(Router::new()
             .fallback(fallback_service_handler)
             .route("/health_check", get(health_check_service_handler))
+            .route("/directory", get(html_list_service_handler))
             .route("/", get(home))
             .nest_service("/static", tower_http::services::ServeDir::new("static"))
             .nest("/api", api)
             .layer(middleware::from_fn(secure_headers_layer))
-            .layer(tracing_layer()))
+            .layer(tracing_layer())
+            .with_state(self.application.clone()))
     }
 
     async fn shutdown() {

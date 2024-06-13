@@ -1,0 +1,25 @@
+<table id="directory-table">
+    <tr>
+        <th> Title </th>
+        <th> Actions </th>
+    </tr>
+    {% for item in items %}
+    <tr>
+        {% if item.is_directory %}
+            <td hx-get="/directory?path={{item.path}}" hx-target="#directory-table" hx-swap="outerHTML">
+                {{ item.name }}
+            </td>
+            <td> No actions </td>
+        {% else %}
+            <td >
+                {{ item.name }}
+            </td>
+                <td> 
+                    <a href="/api/v1/file?path={{item.path}}" download>📦</a>
+                    <p hx-delete="/api/v1/file?path={{item.path}}" hx-swap="delete">🗑️</p>
+                </td>
+        {% endif %}
+    </tr>
+    {% endfor %}
+</table>
+</div>

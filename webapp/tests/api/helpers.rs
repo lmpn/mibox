@@ -108,7 +108,7 @@ impl HttpClient {
             .expect("failed to download file"))
     }
 
-    pub async fn list(&self, address: &str, path: &str) -> Vec<DirectoryView> {
+    pub async fn list(&self, address: &str, path: &str) -> DirectoryView {
         let address = format!("{}/api/v1/directory?path={path}", address);
         self.inner
             .get(address)
@@ -117,8 +117,9 @@ impl HttpClient {
             .unwrap()
             .text()
             .await
-            .map(|r| serde_json::from_str::<serde_json::Value>(&r).unwrap()["result"].clone())
-            .map(|r| serde_json::from_value::<Vec<DirectoryView>>(r))
+            // .map(|r| serde_json::from_str::<serde_json::Value>(&r).unwrap()["result"].clone())
+            .as_ref()
+            .map(|r| serde_json::from_str::<DirectoryView>(r))
             .unwrap()
             .unwrap()
     }

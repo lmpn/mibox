@@ -3,7 +3,7 @@ application:
   host: "127.0.0.1"
   port: 8000
   log_level: "error"
-  drive: "/Users/mindera/repositories/mibox/tmp"
+  drive: "/Users/luisneto/Documents/dev/mibox/tmp"
 database:
   require_ssl: true 
   host: "127.0.0.1"

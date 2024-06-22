@@ -59,7 +59,14 @@ impl Drive {
         let entry = self.entry_valid(path.as_ref())?;
         Self::entry_exists(&entry)?;
         let metadata = entry.metadata().map_err(DriveError::EntryMetadata)?;
-        Ok(entry::Entry::new(entry, Some(metadata)))
+        let name = entry
+            .file_name()
+            .and_then(|m| m.to_str())
+            .map(|m| m.to_string())
+            //TODO Handle Error!!
+            .unwrap();
+
+        Ok(entry::Entry::new(entry, name, Some(metadata)))
     }
 
     /// The method that returns a PathBuf after checking it doesn't exists
@@ -130,12 +137,18 @@ impl Drive {
             .map_err(DriveError::EntryWalk)?
         {
             let path = read_dir_entry.path();
+            let name = path
+                .file_name()
+                .and_then(|m| m.to_str())
+                .map(|m| m.to_string())
+                //TODO Handle Error!!
+                .unwrap();
             let metadata = read_dir_entry
                 .metadata()
                 .await
                 .map_err(DriveError::EntryMetadata)?;
 
-            entries.push(Entry::new(path, Some(metadata)));
+            entries.push(Entry::new(path, name, Some(metadata)));
         }
         Ok(entries)
     }

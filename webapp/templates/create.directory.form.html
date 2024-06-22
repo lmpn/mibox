@@ -1,0 +1,12 @@
+{# templates/create.directory.form.html #}
+{% extends "base.layout.html" %}
+{% block content %}
+<h2>Create directory at {{current}}</h2>
+<form action="create" method="POST">
+    <input type="text" id="base" name="base" hidden value="{{current}}">
+    <label for="directory_name">New directory name:</label>
+    <input type="text" id="directory_name" name="directory_name" pattern="[0-9A-Za-z\-_]{1,}" title="Name may only contain: letters, -, and _" value="{{directory_name}}">
+    <input type="submit">
+</form>
+{% endblock content %}
+

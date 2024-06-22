@@ -1,25 +1,48 @@
-<table id="directory-table">
-    <tr>
-        <th> Title </th>
-        <th> Actions </th>
-    </tr>
-    {% for item in items %}
-    <tr>
-        {% if item.is_directory %}
-            <td hx-get="/directory?path={{item.path}}" hx-target="#directory-table" hx-swap="outerHTML">
-                {{ item.name }}
-            </td>
-            <td> No actions </td>
-        {% else %}
-            <td >
-                {{ item.name }}
-            </td>
-                <td> 
-                    <a href="/api/v1/file?path={{item.path}}" download>📦</a>
-                    <p hx-delete="/api/v1/file?path={{item.path}}" hx-swap="delete">🗑️</p>
+<div id="directory">
+    <button hx-get="/directory?path={{previous}}" hx-target="#directory" hx-swap="outerHTML">
+    ⬅️  {{previous}}
+    </button>
+    <a href="/directory/create?path={{current}}">📁 New directory</a>
+    <a href="/user/signup">⬆️  Upload files</a>
+    <table>
+        <tr>
+            <th> Title </th>
+            <th> Actions </th>
+        </tr>
+        {% for (i,item) in items.iter().enumerate() %}
+        <tr>
+            {% if item.is_directory %}
+                <td hx-get="/directory?path={{item.path}}" hx-target="#directory" hx-swap="outerHTML">
+                    📁 {{item.name}}
+                    <p id="error-message-holder-{{i}}"></p>
                 </td>
-        {% endif %}
-    </tr>
-    {% endfor %}
-</table>
+                <td> 
+                    <button hx-delete="/directory?path={{item.path}}"
+                       hx-target="closest tr"
+                       hx-target-error="#error-message-holder-{{i}}">
+                       🗑️
+                    </button>
+                </td>
+            {% else %}
+                <td>
+                    📃 {{item.name}}
+                    <div id="error-message-holder-{{i}}"></div>
+                </td>
+                <td hx-ext="response-targets"> 
+                    <a href="/api/v1/file?path={{item.path}}" download>
+                        <button>
+                            📦
+                        </button>
+                    </a>
+                    <button hx-delete="/entry?path={{item.path}}"
+                       hx-target="closest tr"
+                       hx-target-error="#error-message-holder-{{i}}">
+                       🗑️
+                    </button>
+                </td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
 </div>

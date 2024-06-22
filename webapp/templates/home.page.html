@@ -1,7 +1,6 @@
 {# templates/home.page.html #}
 {% extends "base.layout.html" %}
-{% block title %}{{ title }}{% endblock %}
 {% block content %}
-<h2>Drive</h2>
-<div hx-get="/directory?path=" hx-swap="outerHTML" hx-trigger="load"> 
+    <h2>Drive</h2>
+    <div hx-get="/directory?path=root" hx-swap="outerHTML" hx-trigger="load"> 
 {% endblock content %}

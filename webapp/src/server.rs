@@ -1,29 +1,12 @@
 use crate::{
     application::Application,
     configuration::Settings,
-    handlers::{
-        directory::{
-            create_dir_service_handler, html_list_service_handler, list_service_handler,
-            remove_dir_service_handler, update_dir_service_handler,
-        },
-        fallback_service_handler,
-        file::{delete_service_handler, download_service_handler, upload_service_handler},
-        health_check_service_handler,
-    },
+    middleware::{secure_headers_layer, tracing_layer},
+    views,
 };
-use askama_axum::Template;
-use axum::{
-    body::Body,
-    extract::Request,
-    http::HeaderValue,
-    middleware::{self, Next},
-    response::Response,
-    routing::{delete, get, post, put},
-    Router,
-};
+use axum::{routing::get, Router};
 use std::net::SocketAddr;
 use tokio::signal;
-use tower_http::trace::TraceLayer;
 
 pub struct Server {
     address: SocketAddr,
@@ -74,22 +57,27 @@ impl Server {
     }
 
     pub async fn create_router(&self) -> anyhow::Result<Router> {
-        let api = Router::new()
-            .route("/v1/file", post(upload_service_handler))
-            .route("/v1/file", get(download_service_handler))
-            .route("/v1/file", delete(delete_service_handler))
-            .route("/v1/directory", get(list_service_handler))
-            .route("/v1/directory", put(update_dir_service_handler))
-            .route("/v1/directory", post(create_dir_service_handler))
-            .route("/v1/directory", delete(remove_dir_service_handler));
         Ok(Router::new()
-            .fallback(fallback_service_handler)
-            .route("/health_check", get(health_check_service_handler))
-            .route("/directory", get(html_list_service_handler))
-            .route("/", get(home))
+            //.fallback(fallback_service_handler)
+            // .route(
+            //     "/file",
+            //     get(views::upload_files_form).post(views::upload_files),
+            // )
+            // .route(
+            //     "/file",
+            //     get(views::file).delete(views::delete_files),
+            // )
+            .route(
+                "/directory",
+                get(views::directory).delete(views::delete_directory),
+            )
+            .route(
+                "/directory/create",
+                get(views::create_directory_form).post(views::create_directory),
+            )
+            .route("/", get(views::home))
             .nest_service("/static", tower_http::services::ServeDir::new("static"))
-            .nest("/api", api)
-            .layer(middleware::from_fn(secure_headers_layer))
+            .layer(axum::middleware::from_fn(secure_headers_layer))
             .layer(tracing_layer())
             .with_state(self.application.clone()))
     }
@@ -120,51 +108,3 @@ impl Server {
         self.address
     }
 }
-
-fn tracing_layer() -> TraceLayer<
-    tower_http::classify::SharedClassifier<tower_http::classify::ServerErrorsAsFailures>,
-    impl Fn(&axum::http::Request<Body>) -> tracing::Span + Clone,
-> {
-    TraceLayer::new_for_http().make_span_with(|request: &Request<Body>| {
-        let request_id = uuid::Uuid::new_v4();
-        tracing::span!(
-            tracing::Level::INFO,
-            "request",
-            method = tracing::field::display(request.method()),
-            uri = tracing::field::display(request.uri()),
-            version = tracing::field::debug(request.version()),
-            request_id = tracing::field::display(request_id),
-        )
-    })
-}
-
-async fn secure_headers_layer(request: Request, next: Next) -> Response {
-    let mut response = next.run(request).await;
-
-    response.headers_mut().insert(
-        axum::http::header::X_FRAME_OPTIONS,
-        HeaderValue::from_static("deny"),
-    );
-    response.headers_mut().insert(
-        axum::http::header::X_XSS_PROTECTION,
-        HeaderValue::from_static("1; mode=block"),
-    );
-    response
-}
-
-#[derive(Template)]
-#[template(path = "home.page.html")]
-struct HomeTemplate<'a> {
-    title: &'a str,
-}
-
-#[tracing::instrument(name = "Home")]
-pub async fn home() -> HomeTemplate<'static> {
-    HomeTemplate { title: "Mibox" }
-}
-
-// #[derive(Template)]
-// #[template(path = "signup.page.html")]
-// struct SignUpTemplate<'a> {
-//     title: &'a str,
-// }

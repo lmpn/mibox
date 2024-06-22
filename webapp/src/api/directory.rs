@@ -62,7 +62,7 @@ pub async fn list_service_handler(
         .iter()
         .map(|elem| {
             let name = elem.file_name();
-            let path = if params.path == "" {
+            let path = if params.path.is_empty() {
                 name.clone()
             } else {
                 format!("{}/{name}", params.path)

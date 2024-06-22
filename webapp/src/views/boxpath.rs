@@ -9,8 +9,8 @@ pub struct BoxPath {
 
 impl BoxPath {
     pub fn new<S: AsRef<str>>(path: S) -> Self {
-        let components = path.as_ref().split("/").skip(1).collect::<Vec<_>>();
-        let (base, name) = if components.len() == 0 {
+        let components = path.as_ref().split('/').skip(1).collect::<Vec<_>>();
+        let (base, name) = if components.is_empty() {
             ("root".to_string(), "".to_string())
         } else if components.len() == 1 {
             ("root".to_string(), components[0].to_string())

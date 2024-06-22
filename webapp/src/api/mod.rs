@@ -7,7 +7,7 @@ mod health;
 use crate::application::Application;
 pub use health::*;
 pub fn create_router() -> Router<Application> {
-    let api_router = Router::new()
+    Router::new()
         .route(
             "/v1/file",
             get(file::download_service_handler)
@@ -22,6 +22,5 @@ pub fn create_router() -> Router<Application> {
                 .delete(directory::remove_dir_service_handler),
         )
         .fallback(fallback_service_handler)
-        .route("/v1/health_check", get(health_check_service_handler));
-    return api_router;
+        .route("/v1/health_check", get(health_check_service_handler))
 }

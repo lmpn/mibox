@@ -1,4 +1,4 @@
-use webapp::handlers::directory::EntryView;
+use webapp::api::directory::EntryView;
 
 use crate::helpers::spawn_app;
 

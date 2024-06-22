@@ -1,5 +1,5 @@
 use crate::helpers::spawn_app;
-use webapp::handlers::directory::EntryView;
+use webapp::api::directory::EntryView;
 
 #[tokio::test]
 async fn when_query_parameters_are_missing_returns_a_400() {

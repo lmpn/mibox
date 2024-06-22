@@ -3,8 +3,8 @@ use rand::Rng;
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
+use webapp::api::directory::DirectoryView;
 use webapp::configuration::get_configuration;
-use webapp::handlers::directory::DirectoryView;
 use webapp::server::Server;
 use webapp::telemetry;
 

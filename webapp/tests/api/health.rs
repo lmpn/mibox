@@ -4,7 +4,7 @@ use crate::helpers::spawn_app;
 async fn health_check_succeeds() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
-    let addr = format!("{}/health_check", app.address);
+    let addr = format!("{}/api/v1/health_check", app.address);
     let response = client
         .get(addr)
         .send()

@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use crate::{application::Application, error::MiboxError};
 use anyhow::Context;
 use askama::Template;

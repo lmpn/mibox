@@ -1,4 +1,5 @@
 use crate::{
+    api,
     application::Application,
     configuration::Settings,
     middleware::{secure_headers_layer, tracing_layer},
@@ -76,6 +77,7 @@ impl Server {
                 get(views::create_directory_form).post(views::create_directory),
             )
             .route("/", get(views::home))
+            .nest("/api", api::create_router())
             .nest_service("/static", tower_http::services::ServeDir::new("static"))
             .layer(axum::middleware::from_fn(secure_headers_layer))
             .layer(tracing_layer())

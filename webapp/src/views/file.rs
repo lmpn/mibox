@@ -20,7 +20,7 @@ pub struct DeleteParameters {
 
 #[tracing::instrument(name = "File delete", skip(application))]
 #[debug_handler]
-pub async fn delete_service_handler(
+pub async fn delete_files(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<DeleteParameters>, MiboxError>,
 ) -> Result<StatusCode, MiboxError> {
@@ -39,16 +39,15 @@ pub struct DownloadParameters {
 
 #[tracing::instrument(name = "File download", skip(application))]
 #[debug_handler]
-pub async fn download_service_handler(
+pub async fn download_files(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<DownloadParameters>, MiboxError>,
 ) -> Result<impl IntoResponse, MiboxError> {
     let d = Drive::new(application.drive)
         .read(params.path.clone())
         .await
-        .context("file stream")?;
+        .context("Error retrieving file stream")?;
     let body = Body::from_stream(d);
-
     let headers = [
         (header::CONTENT_TYPE, "text/toml; charset=utf-8".to_owned()),
         (
@@ -59,7 +58,6 @@ pub async fn download_service_handler(
             ),
         ),
     ];
-
     return Ok((headers, body));
 }
 
@@ -69,7 +67,7 @@ pub struct UploadParameters {
 }
 
 #[tracing::instrument(name = "File upload", skip(application, multipart))]
-pub async fn upload_service_handler(
+pub async fn upload_files(
     State(application): State<Application>,
     WithRejection(Query(params), _): WithRejection<Query<UploadParameters>, MiboxError>,
     mut multipart: Multipart,
@@ -87,5 +85,12 @@ pub async fn upload_service_handler(
             .await
             .context("error uploading file")?;
     }
+    Ok(StatusCode::OK)
+}
+
+#[tracing::instrument(name = "File upload form")]
+pub async fn upload_files_form(
+    WithRejection(Query(params), _): WithRejection<Query<UploadParameters>, MiboxError>,
+) -> Result<StatusCode, MiboxError> {
     Ok(StatusCode::OK)
 }

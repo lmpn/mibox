@@ -4,6 +4,8 @@ mod home;
 pub use home::*;
 mod delete_directory;
 pub use delete_directory::*;
+mod file;
+pub use file::*;
 mod directory;
 pub use directory::*;
 pub mod boxpath;
